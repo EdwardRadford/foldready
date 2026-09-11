@@ -1,48 +1,66 @@
 'use client';
 
 import { useState } from 'react';
-import type { FoldTransition, Shot, Video, ViewportSpec } from '@/engine/types';
+import type { Finding, FoldTransition, Shot, Video, ViewportSpec } from '@/engine/types';
 import { cssVars, shotUrl } from './css';
 
 const BEZEL = 16; // device px of frame around the screen, drawn in CSS
 
-type View = 'folded' | 'after-unfold' | 'fresh';
+/** What the frame is showing. The stage is where the phone is; `fresh` swaps in a clean load. */
+type Stage = 'first-load' | 'unfolded' | 'folded-back';
+type View = 'folded' | 'after-unfold' | 'unfolded-fresh' | 'after-fold-back';
 
 const FILE_FOR: Record<View, string> = {
   folded: 'folded.png',
   'after-unfold': 'fold-transition.png',
-  fresh: 'unfolded.png',
+  'unfolded-fresh': 'unfolded.png',
+  'after-fold-back': 'fold-back.png',
 };
 
 export default function FoldViewer({
   jobId,
   shots,
   videos,
+  findings,
   foldTransition,
   viewports,
 }: {
   jobId: string;
   shots: Shot[];
   videos?: Video[];
+  findings?: Finding[];
   foldTransition: FoldTransition;
   viewports: ViewportSpec[];
 }) {
-  const [open, setOpen] = useState(false);
+  const [stage, setStage] = useState<Stage>('first-load');
   const [fresh, setFresh] = useState(false);
   const [missing, setMissing] = useState<Record<string, boolean>>({});
 
   const folded = viewports.find((v) => v.id === 'folded') ?? { width: 466, height: 678, label: 'Folded' };
   const unfolded = viewports.find((v) => v.id === 'unfolded') ?? { width: 890, height: 626, label: 'Unfolded' };
 
-  const screen = open ? unfolded : folded;
-  const view: View = open ? (fresh ? 'fresh' : 'after-unfold') : 'folded';
   const have = (file: string) => shots.some((s) => s.file === file);
+  const haveFoldBack = have('fold-back.png');
+
+  const open = stage === 'unfolded';
+  const screen = open ? unfolded : folded;
+  const view: View =
+    stage === 'unfolded'
+      ? fresh
+        ? 'unfolded-fresh'
+        : 'after-unfold'
+      : stage === 'folded-back' && !fresh
+        ? 'after-fold-back'
+        : 'folded';
   const stillFile = FILE_FOR[view];
 
-  // The clip only plays where it is the honest thing to show: the folded screen as the page
-  // loads, and the fresh load at the unfolded size. The fold itself stays a still, as evidence.
-  const clip = videos?.find((v) => v.kind === (view === 'folded' ? 'folded' : 'unfolded'));
-  const playing = view !== 'after-unfold' && clip && !missing[clip.file] ? clip : undefined;
+  // The clip only plays where it is the honest thing to show: a clean load at either size.
+  // The page after a fold, either way, stays a still: that is the evidence.
+  const evidence = view === 'after-unfold' || view === 'after-fold-back';
+  const clip = videos?.find((v) => v.kind === (view === 'unfolded-fresh' ? 'unfolded' : 'folded'));
+  const playing = !evidence && clip && !missing[clip.file] ? clip : undefined;
+
+  const foldBackFail = findings?.find((f) => f.id === 'fold-back' && f.status === 'fail');
 
   // The placeholder sits at the bottom of the stack, so a clip that never loads shows it
   // through rather than leaving an empty white screen.
@@ -53,11 +71,15 @@ export default function FoldViewer({
   const scaleH = Math.max(folded.height, unfolded.height) + BEZEL * 2;
 
   const caption =
-    view === 'folded'
-      ? `The outer screen, ${folded.width} × ${folded.height}. The top of the page, as someone first sees it.`
-      : view === 'after-unfold'
-        ? `The inner screen, ${unfolded.width} × ${unfolded.height}, after the page was resized without a reload. That is what the phone does when it opens.`
-        : `A fresh load at ${unfolded.width} × ${unfolded.height}, for comparison.`;
+    view === 'after-unfold'
+      ? `The inner screen, ${unfolded.width} × ${unfolded.height}, after the page was resized without a reload. That is what the phone does when it opens.`
+      : view === 'unfolded-fresh'
+        ? `A fresh load at ${unfolded.width} × ${unfolded.height}, for comparison.`
+        : view === 'after-fold-back'
+          ? 'The outer screen again, after closing the phone without a reload.'
+          : stage === 'folded-back'
+            ? `A fresh load at ${folded.width} × ${folded.height}, for comparison.`
+            : `The outer screen, ${folded.width} × ${folded.height}. The top of the page, as someone first sees it.`;
 
   return (
     <div className="fold-row">
@@ -81,7 +103,11 @@ export default function FoldViewer({
                   <img
                     key={file}
                     src={shotUrl(jobId, file)}
-                    alt={key === 'folded' ? 'The page on the folded screen' : 'The page on the unfolded screen'}
+                    alt={
+                      key === 'folded' || key === 'after-fold-back'
+                        ? 'The page on the folded screen'
+                        : 'The page on the unfolded screen'
+                    }
                     className={view === key ? 'on' : ''}
                     onError={() => setMissing((m) => ({ ...m, [file]: true }))}
                     ref={(el) => {
@@ -124,23 +150,28 @@ export default function FoldViewer({
             type="button"
             className="btn"
             onClick={() => {
-              setOpen((o) => {
-                if (o) setFresh(false);
-                return !o;
-              });
+              setFresh(false);
+              // Folding back is only a separate state when there is a shot of it.
+              setStage(open ? (haveFoldBack ? 'folded-back' : 'first-load') : 'unfolded');
             }}
           >
             {open ? 'Fold it back' : 'Unfold'}
           </button>
-          {open ? (
+          {stage !== 'first-load' ? (
             <button type="button" className="btn btn-quiet" onClick={() => setFresh((f) => !f)}>
-              {fresh ? 'Back to the unfolded view' : 'Compare with a fresh load'}
+              {fresh
+                ? open
+                  ? 'Back to the unfolded view'
+                  : 'Back to the folded view'
+                : 'Compare with a fresh load'}
             </button>
           ) : null}
         </div>
 
         <p className="fold-state">{caption}</p>
         <p className="fold-state">{foldTransition.note}</p>
+
+        {foldBackFail ? <div className="callout">{foldBackFail.title}</div> : null}
 
         {foldTransition.differs ? (
           <div className="callout">

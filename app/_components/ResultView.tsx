@@ -47,6 +47,7 @@ export default function ResultView({ result }: { result: Result }) {
           jobId={id}
           shots={shots}
           videos={result.videos}
+          findings={result.findings}
           foldTransition={result.foldTransition}
           viewports={viewports}
         />

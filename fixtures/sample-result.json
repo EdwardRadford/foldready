@@ -120,10 +120,14 @@
     },
     {
       "id": "fold-back",
-      "status": "pass",
-      "title": "Folding the phone back restores the layout",
-      "detail": "Going from the unfolded screen back to the folded one lays the page out correctly, with no leftover gaps.",
-      "viewport": "folded"
+      "status": "fail",
+      "title": "Layout does not update when the phone closes",
+      "detail": "Closing the phone again without a reload leaves the wide layout in place, so the page sits half off the outer screen until it is reloaded.",
+      "viewport": "folded",
+      "evidence": [
+        "document.scrollWidth = 890 at a 466px viewport",
+        "12 elements keep their unfolded box"
+      ]
     },
     {
       "id": "platform",
@@ -227,6 +231,13 @@
       "width": 890,
       "height": 626,
       "fullHeight": 4310
+    },
+    {
+      "kind": "fold-back",
+      "file": "fold-back.png",
+      "width": 466,
+      "height": 678,
+      "fullHeight": 3960
     },
     {
       "kind": "other",
