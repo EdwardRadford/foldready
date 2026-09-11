@@ -26,8 +26,22 @@ export interface RenderOutput {
   unfolded: Capture;
   split: Capture;
   foldTransition: Capture;   // folded load, then resized to unfolded without reload
+  foldBack: Capture;         // ...then resized back to folded, still without reload
+  unfoldErrors: string[];    // script errors thrown while the viewport changed
+  network: NetworkStats;     // from the folded load
   others: OtherCapture[];    // comparison screens, screenshot only
   videos: VideoCapture[];    // short clips with the page's own motion running
+}
+
+export interface NetworkStats {
+  requests: number;
+  bytes: number;            // transferred body bytes we could measure
+  imageBytes: number;
+  scriptBytes: number;
+  fontBytes: number;
+  domContentLoadedMs: number;
+  loadMs: number;
+  insecureRequests: number; // http:// subresources on an https page
 }
 
 export interface OtherCapture {
@@ -226,10 +240,23 @@ export async function renderAll(url: string, opts: RenderOptions = {}): Promise<
   progress('Loading the page at the folded size');
   const ctxFolded = await newContext(browser, FOLDED, scale);
   const foldedPage = await ctxFolded.newPage();
+  const network: NetworkStats = { requests: 0, bytes: 0, imageBytes: 0, scriptBytes: 0, fontBytes: 0, domContentLoadedMs: 0, loadMs: 0, insecureRequests: 0 };
   foldedPage.on('response', async (r) => {
     try {
       const ct = r.headers()['content-type'] ?? '';
       const u = r.url();
+      network.requests++;
+      if (u.startsWith('http://') && url.startsWith('https://')) network.insecureRequests++;
+      try {
+        const sizes = await r.request().sizes();
+        const b = sizes.responseBodySize > 0 ? sizes.responseBodySize : parseInt(r.headers()['content-length'] ?? '0', 10) || 0;
+        network.bytes += b;
+        if (ct.startsWith('image/')) network.imageBytes += b;
+        else if (/javascript|ecmascript/.test(ct)) network.scriptBytes += b;
+        else if (ct.startsWith('font/') || /woff|ttf|otf/.test(ct) || /\.(woff2?|ttf|otf)(\?|$)/i.test(u)) network.fontBytes += b;
+      } catch {
+        /* sizes unavailable for this response */
+      }
       if ((ct.includes('text/css') || /\.css(\?|$)/i.test(u)) && !seenCss.has(u) && r.ok()) {
         seenCss.add(u);
         const t = await r.text();
@@ -245,6 +272,8 @@ export async function renderAll(url: string, opts: RenderOptions = {}): Promise<
   let status = 0;
   let folded: Capture;
   let foldTransition: Capture;
+  let foldBack: Capture;
+  const unfoldErrors: string[] = [];
   try {
     const { response } = await load(foldedPage, url, navTimeoutMs);
     status = response?.status() ?? 0;
@@ -256,12 +285,19 @@ export async function renderAll(url: string, opts: RenderOptions = {}): Promise<
     if (status === 401 || status === 403) throw new RenderError('The page is behind a login or a block, so we could not check it.', 'blocked');
     if (status >= 400) throw new RenderError(`The page returned an error (${status}).`, 'http');
     html = await foldedPage.content();
+    const timing = await foldedPage.evaluate(() => {
+      const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+      return nav ? { dcl: nav.domContentLoadedEventEnd, load: nav.loadEventEnd || nav.domContentLoadedEventEnd } : { dcl: 0, load: 0 };
+    }).catch(() => ({ dcl: 0, load: 0 }));
+    network.domContentLoadedMs = Math.round(timing.dcl);
+    network.loadMs = Math.round(timing.load);
     const inlineCss = await foldedPage.evaluate(() => Array.from(document.querySelectorAll('style')).map((s) => s.textContent ?? '')).catch(() => [] as string[]);
     cssTexts.push(...inlineCss);
 
     folded = await capture(foldedPage, FOLDED, maxPageHeight);
 
     progress('Unfolding without a reload');
+    foldedPage.on('pageerror', (e) => { if (unfoldErrors.length < 10) unfoldErrors.push(String(e.message ?? e).slice(0, 200)); });
     await foldedPage.setViewportSize({ width: UNFOLDED.width, height: UNFOLDED.height });
     await foldedPage.waitForTimeout(900);
     await foldedPage.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
@@ -269,6 +305,15 @@ export async function renderAll(url: string, opts: RenderOptions = {}): Promise<
     const metrics = await probe(foldedPage);
     const shot = await shoot(foldedPage, UNFOLDED, maxPageHeight);
     foldTransition = { viewport: UNFOLDED, metrics, png: shot.png, fullHeight: shot.fullHeight };
+
+    progress('Folding it back');
+    await foldedPage.setViewportSize({ width: FOLDED.width, height: FOLDED.height });
+    await foldedPage.waitForTimeout(900);
+    await foldedPage.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+    await foldedPage.waitForTimeout(300);
+    const backMetrics = await probe(foldedPage);
+    const backShot = await shoot(foldedPage, FOLDED, maxPageHeight);
+    foldBack = { viewport: FOLDED, metrics: backMetrics, png: backShot.png, fullHeight: backShot.fullHeight };
   } finally {
     await ctxFolded.close().catch(() => {});
   }
@@ -300,5 +345,5 @@ export async function renderAll(url: string, opts: RenderOptions = {}): Promise<
   const others = othersRaw.filter((o): o is OtherCapture => o !== null);
   const videos = clipsRaw.filter((v): v is VideoCapture => v !== null);
 
-  return { engine, finalUrl, status, html, cssTexts, folded, unfolded, split, foldTransition, others, videos };
+  return { engine, finalUrl, status, html, cssTexts, folded, unfolded, split, foldTransition, foldBack, unfoldErrors, network, others, videos };
 }

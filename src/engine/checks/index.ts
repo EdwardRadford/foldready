@@ -9,7 +9,8 @@ import { FOLDED, UNFOLDED, SPLIT } from '../device';
 export interface CheckInput {
   render: RenderOutput;
   css: CssInfo;
-  fold: Comparison;
+  fold: Comparison;       // unfolded without reload vs fresh unfolded load
+  foldBack: Comparison;   // folded back without reload vs the original folded load
 }
 
 const label: Record<ViewportId, string> = { folded: 'folded screen', unfolded: 'unfolded screen', split: 'Split View' };
@@ -31,20 +32,20 @@ function overflowCheck(cap: Capture, id: ViewportId): Finding {
   };
 }
 
-export function runChecks({ render, css, fold }: CheckInput): Finding[] {
+export function runChecks({ render, css, fold, foldBack }: CheckInput): Finding[] {
   const f: Finding[] = [];
   const folded = render.folded.metrics;
 
   // 1. viewport meta
   const vm = analyseViewportMeta(folded.viewportMeta);
   if (!vm.present) {
-    f.push({ id: 'viewport-meta', status: 'fail', title: 'No viewport meta tag', detail: 'Without it, Safari renders the page at desktop width and shrinks it to fit, so nothing adapts to the Duo.' });
+    f.push({ id: 'viewport-meta', scope: 'general', status: 'fail', title: 'No viewport meta tag', detail: 'Without it, Safari renders the page at desktop width and shrinks it to fit, so nothing adapts to the Duo.' });
   } else if (vm.fixedWidth && !vm.deviceWidth) {
-    f.push({ id: 'viewport-meta', status: 'fail', title: `Viewport locked to ${vm.fixedWidth}px`, detail: 'The viewport tag sets a fixed width, so the page is scaled rather than laid out for the screen.', evidence: [vm.content ?? ''] });
+    f.push({ id: 'viewport-meta', scope: 'general', status: 'fail', title: `Viewport locked to ${vm.fixedWidth}px`, detail: 'The viewport tag sets a fixed width, so the page is scaled rather than laid out for the screen.', evidence: [vm.content ?? ''] });
   } else if (vm.blocksZoom) {
-    f.push({ id: 'viewport-meta', status: 'warn', title: 'Pinch zoom is disabled', detail: 'The viewport tag blocks zooming. Not a Duo problem, but worth removing.', evidence: [vm.content ?? ''] });
+    f.push({ id: 'viewport-meta', scope: 'general', status: 'warn', title: 'Pinch zoom is disabled', detail: 'The viewport tag blocks zooming. Not a Duo problem, but worth removing.', evidence: [vm.content ?? ''] });
   } else {
-    f.push({ id: 'viewport-meta', status: 'pass', title: 'Viewport tag is set correctly', detail: 'The page tells Safari to use the real screen width.' });
+    f.push({ id: 'viewport-meta', scope: 'general', status: 'pass', title: 'Viewport tag is set correctly', detail: 'The page tells Safari to use the real screen width.' });
   }
 
   // 2. overflow at each width
@@ -121,6 +122,7 @@ export function runChecks({ render, css, fold }: CheckInput): Finding[] {
     if (folded.smallTapTotal >= 3 && ratio > 0.25) {
       f.push({
         id: 'tap-targets',
+        scope: 'general',
         status: 'warn',
         viewport: 'folded',
         title: 'Some tap targets are small',
@@ -128,7 +130,7 @@ export function runChecks({ render, css, fold }: CheckInput): Finding[] {
         evidence: folded.smallTapTargets.map((t) => `${t.sel}: ${t.w}×${t.h}px`),
       });
     } else {
-      f.push({ id: 'tap-targets', status: 'pass', title: 'Tap targets are big enough', detail: 'Links and buttons are comfortably tappable on the folded screen.' });
+      f.push({ id: 'tap-targets', scope: 'general', status: 'pass', title: 'Tap targets are big enough', detail: 'Links and buttons are comfortably tappable on the folded screen.' });
     }
   }
 
@@ -136,9 +138,9 @@ export function runChecks({ render, css, fold }: CheckInput): Finding[] {
   if (folded.textChars > 200) {
     const pct = Math.round((folded.smallTextChars / folded.textChars) * 100);
     if (pct > 50) {
-      f.push({ id: 'text-size', status: 'warn', viewport: 'folded', title: 'Most text is under 16px', detail: `About ${pct}% of the text on the folded screen is smaller than 16px.` });
+      f.push({ id: 'text-size', scope: 'general', status: 'warn', viewport: 'folded', title: 'Most text is under 16px', detail: `About ${pct}% of the text on the folded screen is smaller than 16px.` });
     } else {
-      f.push({ id: 'text-size', status: 'pass', title: 'Text is readable', detail: `Most text on the folded screen is 16px or larger.` });
+      f.push({ id: 'text-size', scope: 'general', status: 'pass', title: 'Text is readable', detail: `Most text on the folded screen is 16px or larger.` });
     }
   }
 
@@ -184,6 +186,159 @@ export function runChecks({ render, css, fold }: CheckInput): Finding[] {
   // 10. Split View note
   if (render.split.metrics.scrollWidth <= SPLIT.width + 1 && render.folded.metrics.scrollWidth <= FOLDED.width + 1) {
     f.push({ id: 'split-view', status: 'pass', viewport: 'split', title: 'Works in Split View', detail: `The page fits the ${SPLIT.width}px half-screen used when two apps share the inner display.` });
+  }
+
+  // 11. folding back: the mirror of the unfold check
+  const fb = render.foldBack.metrics;
+  if (foldBack.differs) {
+    const why = foldBack.overflowOnlyAfterResize
+      ? `After closing the phone, the page is ${fb.scrollWidth - fb.innerWidth}px too wide for the folded screen, although it fitted when first opened there.`
+      : `${foldBack.layoutShiftCount} of ${foldBack.comparedBoxes} layout blocks sit in a different place than they did when the page first loaded folded.`;
+    f.push({
+      id: 'fold-back',
+      status: 'fail',
+      viewport: 'folded',
+      title: 'Layout does not update when the phone closes',
+      detail: `${why} The wider layout is staying put on the small screen.`,
+      evidence: [...fb.overflowing.map((o) => `${o.sel} is ${o.width}px wide, ending at ${o.right}px`), `pixel difference ${foldBack.pixelDiffPct}%`, `layout blocks moved ${foldBack.layoutShiftCount}/${foldBack.comparedBoxes}`],
+    });
+  } else {
+    f.push({ id: 'fold-back', status: 'pass', viewport: 'folded', title: 'Layout updates when the phone closes', detail: 'Closing the phone mid-session gives the same page as loading it folded.' });
+  }
+
+  // 12. script errors during the unfold
+  if (render.unfoldErrors.length > 0) {
+    f.push({
+      id: 'unfold-errors',
+      status: 'fail',
+      viewport: 'unfolded',
+      title: 'A script failed when the phone unfolded',
+      detail: `${render.unfoldErrors.length} JavaScript error${render.unfoldErrors.length === 1 ? '' : 's'} fired while the screen changed size. Whatever that script does will not happen after opening the phone.`,
+      evidence: render.unfoldErrors,
+    });
+  } else {
+    f.push({ id: 'unfold-errors', status: 'pass', viewport: 'unfolded', title: 'No script errors on unfolding', detail: 'Nothing in the page\'s JavaScript failed when the screen changed size.' });
+  }
+
+  // 13. landscape rules meant for a rotated phone
+  if (css.landscapeQueries.length > 0) {
+    f.push({
+      id: 'landscape-rules',
+      status: 'warn',
+      viewport: 'unfolded',
+      title: 'Landscape rules fire when the phone opens',
+      detail: `The stylesheet has ${css.landscapeQueries.length} rule${css.landscapeQueries.length === 1 ? '' : 's'} for a phone held sideways. The unfolded Duo counts as landscape, so they apply the moment it opens, usually hiding the header or shrinking the top of the page.`,
+      evidence: css.landscapeQueries.map((q) => `@media ${q.raw}`).slice(0, 6),
+    });
+  }
+
+  // 14. long lines of text when unfolded
+  const wide = u.textBlocks.filter((t) => t.width >= 680 && t.fontSize <= 18);
+  if (wide.length > 0) {
+    const w = wide[0];
+    const perLine = Math.round(w.width / (w.fontSize * 0.5));
+    f.push({
+      id: 'long-lines',
+      status: 'warn',
+      viewport: 'unfolded',
+      title: 'Very long lines of text when unfolded',
+      detail: `Paragraphs run ${w.width}px wide at ${Math.round(w.fontSize)}px text, roughly ${perLine} characters a line. Around 75 is comfortable; a max-width on text columns fixes it.`,
+      evidence: wide.slice(0, 5).map((t) => `${t.sel}: ${t.width}px wide, ${Math.round(t.fontSize)}px text`),
+    });
+  } else if (u.textBlocks.length > 0) {
+    f.push({ id: 'long-lines', status: 'pass', viewport: 'unfolded', title: 'Text columns stay readable when unfolded', detail: 'Paragraphs are capped at a comfortable width on the wide inner screen.' });
+  }
+
+  // 15. blurry images after the unfold
+  const blurry = (m: typeof u) => m.images.filter((i) => i.natural < i.rendered * 0.9);
+  const blurAfter = blurry(ft);
+  const blurFresh = blurry(u);
+  if (blurAfter.length > 0 && blurAfter.length > blurFresh.length) {
+    f.push({
+      id: 'blurry-images',
+      status: 'warn',
+      viewport: 'unfolded',
+      title: 'Images stay low-resolution after unfolding',
+      detail: `${blurAfter.length} image${blurAfter.length === 1 ? '' : 's'} chosen for the folded screen ${blurAfter.length === 1 ? 'is' : 'are'} stretched on the inner screen, so ${blurAfter.length === 1 ? 'it looks' : 'they look'} soft until the page reloads.`,
+      evidence: blurAfter.slice(0, 6).map((i) => `${i.sel}: ${i.natural}px image shown at ${i.rendered}px`),
+    });
+  } else if (blurFresh.length >= 2) {
+    f.push({
+      id: 'blurry-images',
+      scope: 'general',
+      status: 'warn',
+      viewport: 'unfolded',
+      title: 'Some images are low-resolution on the inner screen',
+      detail: `${blurFresh.length} images are smaller than the space they fill at ${UNFOLDED.width}px, so they look soft. Not caused by the fold, but visible on it.`,
+      evidence: blurFresh.slice(0, 6).map((i) => `${i.sel}: ${i.natural}px image shown at ${i.rendered}px`),
+    });
+  } else if (ft.images.length > 0) {
+    f.push({ id: 'blurry-images', status: 'pass', viewport: 'unfolded', title: 'Images stay sharp after unfolding', detail: 'Pictures are re-fetched or already large enough for the inner screen.' });
+  }
+
+  // 16. banners or overlays covering the folded screen
+  if (folded.overlay && folded.overlay.coveragePct >= 30) {
+    f.push({
+      id: 'overlay-folded',
+      status: folded.overlay.coveragePct >= 50 ? 'warn' : 'info',
+      viewport: 'folded',
+      title: `A banner covers ${folded.overlay.coveragePct}% of the folded screen`,
+      detail: `A fixed banner or overlay takes ${folded.overlay.coveragePct}% of the short folded screen before anyone reads the page. On a taller phone the same banner takes far less.`,
+      evidence: [folded.overlay.sel],
+    });
+  }
+
+  // --- General insights: what any checker would say. Never fail, never drive the sale.
+  const net = render.network;
+  const mb = (b: number) => (b >= 1_000_000 ? (b / 1_000_000).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1000)) + ' KB');
+  if (net.bytes > 0) {
+    const heavy = net.bytes > 3_000_000;
+    f.push({
+      id: 'page-weight',
+      scope: 'general',
+      status: heavy ? 'warn' : 'pass',
+      title: heavy ? `Heavy page: ${mb(net.bytes)}` : `Page weight ${mb(net.bytes)}`,
+      detail: heavy
+        ? `The first load pulls ${mb(net.bytes)} over ${net.requests} requests. On a mobile connection that is slow; images are ${mb(net.imageBytes)} of it.`
+        : `The first load is ${mb(net.bytes)} over ${net.requests} requests, which is reasonable for mobile.`,
+      evidence: [`images ${mb(net.imageBytes)}`, `scripts ${mb(net.scriptBytes)}`, `fonts ${mb(net.fontBytes)}`, `${net.requests} requests`],
+    });
+  }
+  if (net.loadMs > 0) {
+    const slow = net.loadMs > 5000;
+    f.push({
+      id: 'load-time',
+      scope: 'general',
+      status: slow ? 'warn' : 'pass',
+      title: slow ? `Slow to load: ${(net.loadMs / 1000).toFixed(1)} s` : `Loaded in ${(net.loadMs / 1000).toFixed(1)} s`,
+      detail: `Content appeared after ${(net.domContentLoadedMs / 1000).toFixed(1)} s and the page finished loading at ${(net.loadMs / 1000).toFixed(1)} s in our emulation, on a fast connection. Real phones on mobile data will be slower.`,
+    });
+  }
+  if (net.insecureRequests > 0) {
+    f.push({ id: 'mixed-content', scope: 'general', status: 'warn', title: 'Some files load over plain http', detail: `${net.insecureRequests} request${net.insecureRequests === 1 ? '' : 's'} on this https page use http, which Safari blocks or flags.` });
+  }
+  const a = folded.a11y;
+  f.push(a.hasTitle && a.hasDescription
+    ? { id: 'page-meta', scope: 'general', status: 'pass', title: 'Title and description are set', detail: 'The page has a title and a meta description for search results.' }
+    : { id: 'page-meta', scope: 'general', status: 'warn', title: a.hasTitle ? 'No meta description' : 'No page title', detail: a.hasTitle ? 'Search results will pick their own snippet without a meta description.' : 'The page has no title, so tabs, bookmarks and search results show the address instead.' });
+  f.push(a.hasLang
+    ? { id: 'page-lang', scope: 'general', status: 'pass', title: 'Page language is declared', detail: 'Screen readers and translation tools know which language to use.' }
+    : { id: 'page-lang', scope: 'general', status: 'warn', title: 'Page language is not declared', detail: 'Adding lang="en" to the html tag helps screen readers pronounce the page correctly.' });
+  if (a.imgTotal > 0) {
+    f.push(a.imgNoAlt === 0
+      ? { id: 'image-alt', scope: 'general', status: 'pass', title: 'Every image has alt text', detail: `All ${a.imgTotal} images carry an alt attribute.` }
+      : { id: 'image-alt', scope: 'general', status: 'warn', title: `${a.imgNoAlt} of ${a.imgTotal} images have no alt text`, detail: 'Screen readers skip them or read the filename. Decorative images should carry an empty alt="".' });
+  }
+  f.push(a.h1Count === 1
+    ? { id: 'headings', scope: 'general', status: 'pass', title: 'One main heading', detail: 'The page has a single h1, which is what search engines and screen readers expect.' }
+    : { id: 'headings', scope: 'general', status: 'warn', title: a.h1Count === 0 ? 'No main heading' : `${a.h1Count} main headings`, detail: a.h1Count === 0 ? 'There is no h1 on the page, so nothing says what it is about.' : 'More than one h1 blurs what the page is about. Keep one and demote the rest.' });
+  if (a.inputTotal > 0) {
+    f.push(a.inputNoLabel === 0
+      ? { id: 'form-labels', scope: 'general', status: 'pass', title: 'Form fields are labelled', detail: `All ${a.inputTotal} form fields have a label.` }
+      : { id: 'form-labels', scope: 'general', status: 'warn', title: `${a.inputNoLabel} of ${a.inputTotal} form fields have no label`, detail: 'Unlabelled fields are hard to fill in with a screen reader and get no autofill help.' });
+  }
+  if (a.linkTotal > 0 && a.linkNoText > 0) {
+    f.push({ id: 'link-text', scope: 'general', status: 'warn', title: `${a.linkNoText} links have no text`, detail: 'Icon-only links need an aria-label so screen readers can say where they go.' });
   }
 
   const order = { fail: 0, warn: 1, info: 2, pass: 3 } as const;

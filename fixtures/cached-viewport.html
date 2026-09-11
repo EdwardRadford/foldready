@@ -13,9 +13,16 @@
   .promo { width: 520px; background: #fdd; padding: 12px; }
   @media (min-width: 450px) { .grid { grid-template-columns: 1fr 1fr 1fr; } nav a { font-size: 12px; } }
   @media (max-width: 449px) { .grid { grid-template-columns: 1fr; } }
+  @media (orientation: landscape) { header { display: none; } }
+  .cookie { position: fixed; left: 0; right: 0; bottom: 0; height: 55%; background: #fff; border-top: 1px solid #ccc; padding: 16px; }
+  .about p { font-size: 16px; }
+  .wide img { width: 100%; }
 </style>
 </head>
 <body>
+<div class="cookie">We use cookies to make the site work and to see which pages people read. Choose what you are happy with. <button>Accept all</button> <button>Only necessary</button></div>
+<div class="wide"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" width="1" height="1"></div>
+<div class="about"><p>Right. We are the Corner Cafe and we have been doing this since 2007, when we bought a battered espresso machine for two hundred pounds with no idea what we were doing. Nineteen years later, three machines deep, and the plan is essentially the same: good coffee, decent cake, and a chair you can sit in for an hour without anyone hovering.</p></div>
 <header>
   <nav><a href="#">Home</a><a href="#">Menu</a><a href="#">Book</a><a href="#">Find us</a></nav>
 </header>
@@ -23,6 +30,8 @@
 <div class="promo">This week: two coffees for the price of one, every morning before ten.</div>
 <div class="grid" id="grid"></div>
 <script>
+  // A resize handler that throws: the layout code never gets to run after a fold.
+  window.addEventListener('resize', function () { relayoutCards(); });
   // The classic bug: measure once at load, lay out with JS, never re-measure.
   var width = window.innerWidth;
   var cols = width > 700 ? 4 : 1;

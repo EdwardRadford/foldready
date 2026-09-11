@@ -27,6 +27,18 @@ describe('analyseCss', () => {
     expect(info.trapQueries).toHaveLength(1);
     expect(info.widthQueries).toHaveLength(3);
   });
+  it('keeps only landscape rules that would fire at the unfolded size', () => {
+    const info = analyseCss([
+      '@media (orientation: landscape){a{}}',
+      '@media (orientation: landscape) and (min-width: 1024px){b{}}',
+      '@media (max-width: 767px) and (orientation: landscape){c{}}',
+      '@media screen and (orientation:landscape) and (max-height: 500px){d{}}',
+    ]);
+    expect(info.landscapeQueries.map((q) => q.raw)).toEqual([
+      '(orientation: landscape)',
+      'screen and (orientation:landscape) and (max-height: 500px)',
+    ]);
+  });
   it('counts 100vh and dvh separately', () => {
     const info = analyseCss(['.hero{min-height:100vh} .m{height: 100dvh} .x{height:calc(100vh - 80px)}']);
     expect(info.vh.count).toBe(2);
@@ -64,7 +76,8 @@ const baseMetrics: DomMetrics = {
   innerWidth: 466, innerHeight: 678, scrollWidth: 466, scrollHeight: 2000, viewportMeta: 'width=device-width',
   overflowing: [], smallTapTargets: [], smallTapTotal: 0, tapTotal: 10, textChars: 1000, smallTextChars: 100,
   vhHeroes: [], headerHeight: 60, fixedCoverage: 0.1, navPresent: true, navVisible: true, menuToggle: false,
-  bigTables: [], boxes: [], title: 't',
+  bigTables: [], images: [], textBlocks: [], overlay: null, boxes: [], title: 't',
+  a11y: { hasLang: true, hasTitle: true, hasDescription: true, h1Count: 1, imgTotal: 0, imgNoAlt: 0, inputTotal: 0, inputNoLabel: 0, linkTotal: 5, linkNoText: 0 },
 };
 const f = (status: Finding['status'], id: string = status): Finding => ({ id, status, title: id, detail: id });
 const responsiveCss = analyseCss(['@media (max-width: 767px){a{}}']);

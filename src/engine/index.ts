@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Result, Shot, Video } from './types';
-import { VIEWPORTS, EMULATION_NOTE, UNFOLDED } from './device';
+import { VIEWPORTS, EMULATION_NOTE, UNFOLDED, FOLDED } from './device';
 import { normaliseUrl, assertPublicHost, UrlError } from './url';
 import { renderAll, RenderError, type RenderOutput } from './render';
 import { analyseCss, analyseViewportMeta, detectPlatform } from './css';
@@ -24,7 +24,7 @@ export interface RunOptions {
   others?: boolean;             // render comparison screens (default true)
 }
 
-export const SHOT_FILES = ['folded.png', 'unfolded.png', 'split.png', 'fold-transition.png', 'other-iphone.png', 'other-ipad.png', 'other-laptop.png'] as const;
+export const SHOT_FILES = ['folded.png', 'unfolded.png', 'split.png', 'fold-transition.png', 'fold-back.png', 'other-iphone.png', 'other-ipad.png', 'other-laptop.png'] as const;
 export const VIDEO_FILES = ['folded.webm', 'unfolded.webm'] as const;
 
 async function writeShots(render: RenderOutput, outDir: string): Promise<Shot[]> {
@@ -34,6 +34,7 @@ async function writeShots(render: RenderOutput, outDir: string): Promise<Shot[]>
     { kind: 'unfolded', cap: render.unfolded, file: 'unfolded.png' },
     { kind: 'split', cap: render.split, file: 'split.png' },
     { kind: 'fold-transition', cap: render.foldTransition, file: 'fold-transition.png' },
+    { kind: 'fold-back', cap: render.foldBack, file: 'fold-back.png' },
   ];
   const shots: Shot[] = [];
   for (const e of entries) {
@@ -126,7 +127,12 @@ export async function runCheck(input: string, opts: RunOptions): Promise<Result>
     { metrics: render.unfolded.metrics, png: render.unfolded.png },
     UNFOLDED.height * scale,
   );
-  const findings = runChecks({ render, css, fold });
+  const foldBack = compareFold(
+    { metrics: render.foldBack.metrics, png: render.foldBack.png },
+    { metrics: render.folded.metrics, png: render.folded.png },
+    FOLDED.height * scale,
+  );
+  const findings = runChecks({ render, css, fold, foldBack });
   const viewportMeta = analyseViewportMeta(render.folded.metrics.viewportMeta);
   const cls = classify({ findings, css, viewportMeta, folded: render.folded.metrics });
 

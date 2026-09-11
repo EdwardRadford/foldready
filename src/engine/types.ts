@@ -1,6 +1,6 @@
 // Contract between the engine and the web UI. Keep additive.
 export type ViewportId = 'folded' | 'unfolded' | 'split';
-export type ShotKind = ViewportId | 'fold-transition' | 'other';
+export type ShotKind = ViewportId | 'fold-transition' | 'fold-back' | 'other';
 export type Status = 'pass' | 'warn' | 'fail' | 'info';
 export type Outcome = 'passes' | 'patchable' | 'needs-more';
 export type Platform = 'wordpress' | 'squarespace' | 'wix' | 'webflow' | 'shopify' | 'custom' | 'unknown';
@@ -16,6 +16,7 @@ export interface ViewportSpec {
 export interface Finding {
   id: string;           // stable machine id, e.g. "overflow-folded"
   status: Status;
+  scope?: 'duo' | 'general'; // 'general' = what any checker would say; default 'duo'
   title: string;        // short, plain English
   detail: string;       // one or two sentences, specific, calm
   viewport?: ViewportId;

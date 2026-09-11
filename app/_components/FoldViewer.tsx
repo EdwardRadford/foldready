@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { FoldTransition, Shot, ViewportSpec } from '@/engine/types';
+import type { FoldTransition, Shot, Video, ViewportSpec } from '@/engine/types';
 import { cssVars, shotUrl } from './css';
 
 const BEZEL = 16; // device px of frame around the screen, drawn in CSS
@@ -17,11 +17,13 @@ const FILE_FOR: Record<View, string> = {
 export default function FoldViewer({
   jobId,
   shots,
+  videos,
   foldTransition,
   viewports,
 }: {
   jobId: string;
   shots: Shot[];
+  videos?: Video[];
   foldTransition: FoldTransition;
   viewports: ViewportSpec[];
 }) {
@@ -35,8 +37,20 @@ export default function FoldViewer({
   const screen = open ? unfolded : folded;
   const view: View = open ? (fresh ? 'fresh' : 'after-unfold') : 'folded';
   const have = (file: string) => shots.some((s) => s.file === file);
-  const activeFile = FILE_FOR[view];
-  const activeMissing = missing[activeFile] === true || !have(activeFile);
+  const stillFile = FILE_FOR[view];
+
+  // The clip only plays where it is the honest thing to show: the folded screen as the page
+  // loads, and the fresh load at the unfolded size. The fold itself stays a still, as evidence.
+  const clip = videos?.find((v) => v.kind === (view === 'folded' ? 'folded' : 'unfolded'));
+  const playing = view !== 'after-unfold' && clip && !missing[clip.file] ? clip : undefined;
+
+  // The placeholder sits at the bottom of the stack, so a clip that never loads shows it
+  // through rather than leaving an empty white screen.
+  const stillMissing = missing[stillFile] === true || !have(stillFile);
+
+  // One scale for both states, so only the right edge moves when the phone opens.
+  const scaleW = unfolded.width + BEZEL * 2;
+  const scaleH = Math.max(folded.height, unfolded.height) + BEZEL * 2;
 
   const caption =
     view === 'folded'
@@ -48,80 +62,97 @@ export default function FoldViewer({
   return (
     <div className="fold-row">
       <div className="fold-stage">
-        <div
-          className="phone"
-          style={cssVars({ '--nat-w': screen.width + BEZEL * 2, '--nat-h': screen.height + BEZEL * 2 })}
-        >
-          <div className="phone-screen">
-            {(Object.keys(FILE_FOR) as View[]).map((key) => {
-              const file = FILE_FOR[key];
-              if (missing[file] || !have(file)) return null;
-              return (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  key={file}
-                  src={shotUrl(jobId, file)}
-                  alt={key === 'folded' ? 'The page on the folded screen' : 'The page on the unfolded screen'}
-                  className={view === key ? 'on' : ''}
-                  onError={() => setMissing((m) => ({ ...m, [file]: true }))}
-                  ref={(el) => {
-                    // An image that failed before hydration never fires onError.
-                    if (el && el.complete && el.naturalWidth === 0) {
-                      setMissing((m) => (m[file] ? m : { ...m, [file]: true }));
-                    }
-                  }}
+        <div className="fold-box" style={cssVars({ '--scale-w': scaleW, '--scale-h': scaleH })}>
+          <div
+            className="phone"
+            style={cssVars({ '--w': screen.width + BEZEL * 2, '--h': screen.height + BEZEL * 2 })}
+          >
+            <div className="phone-screen">
+              {stillMissing ? (
+                <div className="shot-missing">
+                  {screen.label} render, {screen.width} × {screen.height}
+                </div>
+              ) : null}
+              {(Object.keys(FILE_FOR) as View[]).map((key) => {
+                const file = FILE_FOR[key];
+                if (missing[file] || !have(file)) return null;
+                return (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={file}
+                    src={shotUrl(jobId, file)}
+                    alt={key === 'folded' ? 'The page on the folded screen' : 'The page on the unfolded screen'}
+                    className={view === key ? 'on' : ''}
+                    onError={() => setMissing((m) => ({ ...m, [file]: true }))}
+                    ref={(el) => {
+                      // An image that failed before hydration never fires onError.
+                      if (el && el.complete && el.naturalWidth === 0) {
+                        setMissing((m) => (m[file] ? m : { ...m, [file]: true }));
+                      }
+                    }}
+                  />
+                );
+              })}
+              {playing ? (
+                <video
+                  key={playing.file}
+                  className="phone-video"
+                  src={shotUrl(jobId, playing.file)}
+                  poster={have(stillFile) ? shotUrl(jobId, stillFile) : undefined}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  aria-label="The page moving on the Duo screen"
+                  onError={() => setMissing((m) => ({ ...m, [playing.file]: true }))}
                 />
-              );
-            })}
-            {activeMissing ? (
-              <div className="shot-missing">
-                {screen.label} render, {screen.width} × {screen.height}
-              </div>
-            ) : null}
-            <div className={open ? 'phone-crease on' : 'phone-crease'} aria-hidden="true" />
+              ) : null}
+              <div className={open ? 'phone-hinge on' : 'phone-hinge'} aria-hidden="true" />
+            </div>
           </div>
         </div>
       </div>
 
       <div className="fold-side">
-      <p className="fold-lead">
-        The page as it opens on the folded screen. Unfold it to see what the phone does when
-        someone opens it mid-page, without the page reloading.
-      </p>
-      <div className="fold-controls btn-row">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setOpen((o) => {
-              if (o) setFresh(false);
-              return !o;
-            });
-          }}
-        >
-          {open ? 'Fold it back' : 'Unfold'}
-        </button>
-        {open ? (
-          <button type="button" className="btn btn-quiet" onClick={() => setFresh((f) => !f)}>
-            {fresh ? 'Back to the unfolded view' : 'Compare with a fresh load'}
+        <p className="fold-lead">
+          The page as it opens on the folded screen. Unfold it to see what the phone does when
+          someone opens it mid-page, without the page reloading.
+        </p>
+        <div className="fold-controls btn-row">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setOpen((o) => {
+                if (o) setFresh(false);
+                return !o;
+              });
+            }}
+          >
+            {open ? 'Fold it back' : 'Unfold'}
           </button>
-        ) : null}
-      </div>
-
-      <p className="fold-state">{caption}</p>
-      <p className="fold-state">{foldTransition.note}</p>
-
-      {foldTransition.differs ? (
-        <div className="callout">
-          The page did not re-lay itself out after unfolding. The fresh load at{' '}
-          {unfolded.width} × {unfolded.height} and the page after the fold differ by{' '}
-          {foldTransition.pixelDiffPct.toFixed(1)}% of the screen
-          {foldTransition.layoutShiftCount > 0
-            ? `, across ${foldTransition.layoutShiftCount} element${foldTransition.layoutShiftCount === 1 ? '' : 's'}`
-            : ''}
-          . Someone who opens the phone mid-page keeps the folded layout until they reload.
+          {open ? (
+            <button type="button" className="btn btn-quiet" onClick={() => setFresh((f) => !f)}>
+              {fresh ? 'Back to the unfolded view' : 'Compare with a fresh load'}
+            </button>
+          ) : null}
         </div>
-      ) : null}
+
+        <p className="fold-state">{caption}</p>
+        <p className="fold-state">{foldTransition.note}</p>
+
+        {foldTransition.differs ? (
+          <div className="callout">
+            The page did not re-lay itself out after unfolding. The fresh load at{' '}
+            {unfolded.width} × {unfolded.height} and the page after the fold differ by{' '}
+            {foldTransition.pixelDiffPct.toFixed(1)}% of the screen
+            {foldTransition.layoutShiftCount > 0
+              ? `, across ${foldTransition.layoutShiftCount} element${foldTransition.layoutShiftCount === 1 ? '' : 's'}`
+              : ''}
+            . Someone who opens the phone mid-page keeps the folded layout until they reload.
+          </div>
+        ) : null}
       </div>
     </div>
   );

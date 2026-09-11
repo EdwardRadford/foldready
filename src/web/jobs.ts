@@ -211,11 +211,25 @@ async function pump(): Promise<void> {
   }
 }
 
-export const SHOT_FILES = ['folded.png', 'unfolded.png', 'split.png', 'fold-transition.png'] as const;
+export const SHOT_FILES = [
+  'folded.png',
+  'unfolded.png',
+  'split.png',
+  'fold-transition.png', 'fold-back.png',
+  'other-iphone.png',
+  'other-ipad.png',
+  'other-laptop.png',
+  'folded.webm',
+  'unfolded.webm',
+] as const;
 export type ShotFile = (typeof SHOT_FILES)[number];
 
 export function isShotFile(name: string): name is ShotFile {
   return (SHOT_FILES as readonly string[]).includes(name);
+}
+
+export function shotContentType(file: string): string {
+  return file.endsWith('.webm') ? 'video/webm' : 'image/png';
 }
 
 export function shotPath(id: string, file: string): string | undefined {

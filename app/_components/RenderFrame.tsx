@@ -1,39 +1,45 @@
 'use client';
 
 import { useState } from 'react';
-import type { Shot, ViewportSpec } from '@/engine/types';
+import type { Shot } from '@/engine/types';
 import { cssVars, shotUrl } from './css';
 
 /**
- * A browser-ish frame at the viewport's aspect, holding the full-page screenshot.
+ * A browser-ish frame at one screen's aspect, holding the full-page screenshot.
  * Hover scrolls the page inside the frame; on touch the frame scrolls normally.
  */
 export default function RenderFrame({
   jobId,
-  viewport,
+  label,
+  width,
+  height,
+  description,
   shot,
 }: {
   jobId: string;
-  viewport: ViewportSpec;
+  label: string;
+  width: number;
+  height: number;
+  description?: string;
   shot?: Shot;
 }) {
   const [failed, setFailed] = useState(false);
 
-  const fullHeight = Math.max(shot?.fullHeight ?? viewport.height, viewport.height);
+  const fullHeight = Math.max(shot?.fullHeight ?? height, height);
   // The image is 100% of the frame width, so its rendered height is fullHeight/width of that.
   // Shifting by this percentage of its own height brings the last screenful into view.
-  const shiftPct = fullHeight > viewport.height ? -(1 - viewport.height / fullHeight) * 100 : 0;
+  const shiftPct = fullHeight > height ? -(1 - height / fullHeight) * 100 : 0;
   const seconds = Math.min(14, Math.max(1.5, fullHeight / 700));
   const show = shot && !failed;
 
   return (
     <div className="render">
       <div className="render-head">
-        <h3>{viewport.label}</h3>
+        <h3>{label}</h3>
         <p className="dims">
-          {viewport.width} × {viewport.height}
+          {width} × {height}
         </p>
-        <p className="desc">{viewport.description}</p>
+        {description ? <p className="desc">{description}</p> : null}
       </div>
       <div className="browser">
         <div className="browser-bar" aria-hidden="true">
@@ -45,8 +51,8 @@ export default function RenderFrame({
         <div
           className="scroller"
           style={cssVars({
-            '--vw': viewport.width,
-            '--vh': viewport.height,
+            '--vw': width,
+            '--vh': height,
             '--shift': `${shiftPct.toFixed(3)}%`,
             '--dur': `${seconds.toFixed(1)}s`,
           })}
@@ -55,7 +61,7 @@ export default function RenderFrame({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={shotUrl(jobId, shot.file)}
-              alt={`The full page at ${viewport.width} by ${viewport.height}`}
+              alt={`The full page at ${width} by ${height}`}
               onError={() => setFailed(true)}
               ref={(el) => {
                 // An image that failed before hydration never fires onError.
@@ -63,7 +69,7 @@ export default function RenderFrame({
               }}
             />
           ) : (
-            <div className="flat">{viewport.label} render</div>
+            <div className="flat">{label} render</div>
           )}
         </div>
       </div>

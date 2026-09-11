@@ -149,7 +149,7 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
 
 .fold-row {
   display: grid;
-  grid-template-columns: minmax(0, 46%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 60%) minmax(0, 1fr);
   gap: calc(var(--s) * 4);
   align-items: start;
   margin-top: calc(var(--s) * 3);
@@ -158,17 +158,23 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
 
 .fold-stage { container-type: inline-size; }
 
+.fold-box {
+  /* 1em == one device pixel. The scale is fixed by the widest and tallest state, so opening
+     the phone moves the right edge only: nothing rescales, nothing recentres. */
+  font-size: min(1px, calc(100cqw / var(--scale-w)), calc(58vh / var(--scale-h)));
+  height: calc(var(--scale-h) * 1em); /* the room below stays still while the frame opens */
+}
+
 .phone {
-  /* 1em == one device pixel, shrunk to fit the container and to stay inside the screen. */
-  font-size: min(1px, calc(100cqw / var(--nat-w)), calc(58vh / var(--nat-h)));
-  width: calc(var(--nat-w) * 1em);
-  height: calc(var(--nat-h) * 1em);
+  width: calc(var(--w) * 1em);
+  height: calc(var(--h) * 1em);
+  margin: 0; /* anchored left and top: only the right edge sweeps out */
   border: 1px solid var(--line-strong);
   background: #e8e6e0;
   border-radius: 40em;
   padding: 16em;
   position: relative;
-  transition: width 0.55s ease, height 0.55s ease, border-radius 0.55s ease, font-size 0.55s ease;
+  transition: width 0.55s ease, height 0.55s ease;
 }
 .phone-screen {
   position: relative;
@@ -190,18 +196,32 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
   transition: opacity 0.4s ease;
 }
 .phone-screen img.on { opacity: 1; }
-.phone-crease {
+.phone-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  animation: fade-in 0.4s ease both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.phone-hinge {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 50%;
   width: 1px;
-  background: rgba(26, 26, 24, 0.16);
+  background: var(--line-strong);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.5s ease;
   pointer-events: none;
 }
-.phone-crease.on { opacity: 1; }
+.phone-hinge.on { opacity: 1; }
 
 .shot-missing {
   position: absolute;
@@ -285,6 +305,12 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
 }
 .hover-hint { color: var(--muted); font-size: 13px; margin-top: calc(var(--s) * 2); }
 
+.part-two {
+  border-top: 1px solid var(--line);
+  margin-top: calc(var(--s) * 8);
+}
+.list-head { font-size: 16px; margin-top: calc(var(--s) * 6); }
+
 /* ---------- findings ---------- */
 
 .findings { margin-top: calc(var(--s) * 3); border-top: 1px solid var(--line); max-width: 72ch; }
@@ -355,4 +381,5 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
 @media (prefers-reduced-motion: reduce) {
   .bar i { animation: none; width: 100%; }
   .phone, .phone-screen img, .scroller img { transition-duration: 0.01ms; }
+  .phone-video { animation: none; }
 }

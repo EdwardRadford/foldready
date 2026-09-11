@@ -21,6 +21,21 @@ export interface DomMetrics {
   navVisible: boolean;
   menuToggle: boolean;        // a visible burger/menu button in the first screen
   bigTables: { sel: string; width: number }[];
+  images: { sel: string; natural: number; rendered: number }[];   // visible images in the first screens
+  textBlocks: { sel: string; width: number; fontSize: number; chars: number }[]; // widest paragraphs
+  overlay: { sel: string; coveragePct: number } | null;           // fixed banner/overlay covering the first screen
+  a11y: {
+    hasLang: boolean;
+    hasTitle: boolean;
+    hasDescription: boolean;
+    h1Count: number;
+    imgTotal: number;
+    imgNoAlt: number;
+    inputTotal: number;
+    inputNoLabel: number;
+    linkTotal: number;
+    linkNoText: number;
+  };
   boxes: Box[];
   title: string;
 }
@@ -67,6 +82,9 @@ export const PROBE_SOURCE = String.raw`(() => {
   const vhHeroes = [];
   const bigTables = [];
   const fixedRects = [];
+  const images = [];
+  const textBlocks = [];
+  let overlay = null;
   for (const el of all) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'script' || tag === 'style' || tag === 'noscript' || tag === 'link' || tag === 'meta') continue;
@@ -96,6 +114,26 @@ export const PROBE_SOURCE = String.raw`(() => {
     }
     if (r.top < vh && Math.abs(r.height - vh) <= 2 && r.width >= vw * 0.9 && (tag === 'section' || tag === 'div' || tag === 'header' || tag === 'main') && vhHeroes.length < 5) {
       vhHeroes.push({ sel: sel(el), height: Math.round(r.height) });
+    }
+    // images in the first two screens: natural vs rendered width (blur after a resize)
+    if (tag === 'img' && r.top < vh * 2 && r.width >= 150 && el.naturalWidth > 0 && images.length < 40) {
+      images.push({ sel: sel(el), natural: el.naturalWidth, rendered: Math.round(r.width) });
+    }
+    // widest text blocks in the first two screens (line length when unfolded)
+    if ((tag === 'p' || tag === 'li' || tag === 'dd') && r.top < vh * 2 && r.width > 0) {
+      const t = (el.textContent || '').trim();
+      if (t.length >= 120) textBlocks.push({ sel: sel(el), width: Math.round(r.width), fontSize: parseFloat(cs.fontSize), chars: t.length });
+    }
+    // a fixed banner or overlay that covers a big share of the first screen
+    if (cs.position === 'fixed' && r.top < vh && r.bottom > 0) {
+      const cover = (Math.min(r.right, vw) - Math.max(r.left, 0)) * (Math.min(r.bottom, vh) - Math.max(r.top, 0)) / (vw * vh);
+      const text = (el.innerText || '').trim();
+      const bg = cs.backgroundColor;
+      const painted = bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent';
+      if (cover >= 0.3 && (text.length > 20 || el.querySelector('button, a')) && (painted || text.length > 20)) {
+        const pct = Math.round(cover * 100);
+        if (!overlay || pct > overlay.coveragePct) overlay = { sel: sel(el), coveragePct: pct };
+      }
     }
     if (tag === 'table' && r.width > 500 && (el.hasAttribute('width') || /px$/.test(el.style.width || '')) && bigTables.length < 5) {
       bigTables.push({ sel: sel(el), width: Math.round(r.width) });
@@ -136,7 +174,37 @@ export const PROBE_SOURCE = String.raw`(() => {
   if (body) walk(body, 0, '');
 
   const meta = document.querySelector('meta[name="viewport" i]');
+
+  // accessibility and page basics, the things any checker reports
+  const imgs = Array.from(document.images);
+  const inputs = Array.from(document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]), select, textarea'));
+  const inputNoLabel = inputs.filter((i) => {
+    if (i.getAttribute('aria-label') || i.getAttribute('aria-labelledby') || i.getAttribute('title')) return false;
+    if (i.id && document.querySelector('label[for="' + i.id.replace(/"/g, '') + '"]')) return false;
+    if (i.closest('label')) return false;
+    return !i.getAttribute('placeholder');
+  }).length;
+  const links = Array.from(document.querySelectorAll('a[href]'));
+  const linkNoText = links.filter((a) => {
+    if ((a.textContent || '').trim()) return false;
+    if (a.getAttribute('aria-label') || a.getAttribute('title')) return false;
+    const img = a.querySelector('img[alt], svg[aria-label], svg title');
+    return !img;
+  }).length;
+  const a11y = {
+    hasLang: !!(document.documentElement.getAttribute('lang') || '').trim(),
+    hasTitle: !!(document.title || '').trim(),
+    hasDescription: !!document.querySelector('meta[name="description" i][content]'),
+    h1Count: document.querySelectorAll('h1').length,
+    imgTotal: imgs.length,
+    imgNoAlt: imgs.filter((i) => !i.hasAttribute('alt') && i.getAttribute('role') !== 'presentation').length,
+    inputTotal: inputs.length,
+    inputNoLabel,
+    linkTotal: links.length,
+    linkNoText
+  };
   return {
+    a11y,
     innerWidth: vw, innerHeight: vh,
     scrollWidth: Math.max(doc.scrollWidth, body ? body.scrollWidth : 0),
     scrollHeight: Math.max(doc.scrollHeight, body ? body.scrollHeight : 0),
@@ -153,6 +221,9 @@ export const PROBE_SOURCE = String.raw`(() => {
     navVisible: !!(navRect && navRect.width > 0 && navRect.height > 0 && navRect.top < vh),
     menuToggle,
     bigTables,
+    images,
+    textBlocks: textBlocks.sort((a, b) => b.width - a.width).slice(0, 5),
+    overlay,
     boxes,
     title: document.title || ''
   };

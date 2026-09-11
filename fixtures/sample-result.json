@@ -28,7 +28,21 @@
       "title": "The sticky header covers the booking button",
       "detail": "The header keeps its 96px mobile height on the unfolded screen and overlaps the Book an appointment button, which sits 62px from the top of the page.",
       "viewport": "unfolded",
-      "evidence": ["header.site-header { position: sticky; height: 96px }", ".btn-book { top: 62px }"]
+      "evidence": [
+        "header.site-header { position: sticky; height: 96px }",
+        ".btn-book { top: 62px }"
+      ]
+    },
+    {
+      "id": "overlay-folded",
+      "status": "fail",
+      "title": "The cookie banner covers the folded screen",
+      "detail": "The consent banner is 420px tall on the folded screen, which leaves 258px of the page visible behind it.",
+      "viewport": "folded",
+      "evidence": [
+        "#cookie-banner { height: 420px }",
+        "folded viewport height: 678px"
+      ]
     },
     {
       "id": "breakpoint-trap-folded",
@@ -36,7 +50,10 @@
       "title": "A breakpoint lands inside the folded width",
       "detail": "A media query switches layout at 480px, which is inside the folded screen's 466px band. Small changes to text size flip the page between two layouts.",
       "viewport": "folded",
-      "evidence": ["@media (min-width: 480px)", "folded viewport width: 466px"]
+      "evidence": [
+        "@media (min-width: 480px)",
+        "folded viewport width: 466px"
+      ]
     },
     {
       "id": "vh-hero",
@@ -44,15 +61,9 @@
       "title": "The hero is sized with 100vh",
       "detail": "The opening panel is 100vh tall, so on the short unfolded screen the practice name and the phone number sit below the first screenful.",
       "viewport": "unfolded",
-      "evidence": [".hero { min-height: 100vh }"]
-    },
-    {
-      "id": "tap-targets-split",
-      "status": "warn",
-      "title": "Two links are close together in split view",
-      "detail": "The opening hours links are 28px apart in the footer at 440px wide, which is tight for a thumb.",
-      "viewport": "split",
-      "evidence": [".footer-hours a (28px gap)"]
+      "evidence": [
+        ".hero { min-height: 100vh }"
+      ]
     },
     {
       "id": "resize-listeners",
@@ -60,41 +71,206 @@
       "title": "The slider does not re-measure when the phone opens",
       "detail": "The homepage slider reads its width once on load. After the fold it keeps the folded width and leaves a blank column on the right.",
       "viewport": "unfolded",
-      "evidence": ["no resize listener bound by slick.min.js", ".slick-track width unchanged after resize"]
+      "evidence": [
+        "no resize listener bound by slick.min.js",
+        ".slick-track width unchanged after resize"
+      ]
     },
     {
-      "id": "text-size",
+      "id": "unfold-errors",
+      "status": "warn",
+      "title": "Two scripts throw an error when the phone is opened",
+      "detail": "The slider and the map both throw on the resize that the fold triggers, so anything they control stops responding until the page is reloaded.",
+      "viewport": "unfolded",
+      "evidence": [
+        "TypeError: undefined is not an object (slick.min.js:4)",
+        "TypeError: n.getBoundingClientRect (maps.js:112)"
+      ]
+    },
+    {
+      "id": "long-lines",
+      "status": "warn",
+      "title": "Body text runs to 104 characters a line when unfolded",
+      "detail": "There is no maximum width on the text column, so paragraphs stretch the full 890px. Comfortable reading is nearer 75 characters.",
+      "viewport": "unfolded",
+      "evidence": [
+        ".entry-content p { max-width: none }",
+        "measured: 104 characters"
+      ]
+    },
+    {
+      "id": "landscape-rules",
+      "status": "warn",
+      "title": "A landscape media query catches the unfolded screen",
+      "detail": "The unfolded screen is wider than it is tall, so a rule written for phones held sideways applies and hides the sidebar.",
+      "viewport": "unfolded",
+      "evidence": [
+        "@media (orientation: landscape) { .sidebar { display: none } }"
+      ]
+    },
+    {
+      "id": "blurry-images",
+      "status": "warn",
+      "title": "Two images go soft on the unfolded screen",
+      "detail": "The gallery thumbnails are served at 320px wide and are stretched to 445px when the phone opens.",
+      "viewport": "unfolded",
+      "evidence": [
+        ".gallery img[src$=\"thumb-320.jpg\"] (natural 320px, displayed 445px)"
+      ]
+    },
+    {
+      "id": "fold-back",
       "status": "pass",
-      "title": "Text stays readable at every size",
-      "detail": "Body text renders at 16px or more on all three screens, with no forced zoom.",
+      "title": "Folding the phone back restores the layout",
+      "detail": "Going from the unfolded screen back to the folded one lays the page out correctly, with no leftover gaps.",
       "viewport": "folded"
-    },
-    {
-      "id": "viewport-meta",
-      "status": "pass",
-      "title": "The viewport tag is set correctly",
-      "detail": "width=device-width, initial-scale=1 is present, so the page uses the real screen width rather than a fixed one.",
-      "evidence": ["<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"]
-    },
-    {
-      "id": "images-responsive",
-      "status": "pass",
-      "title": "Images scale with the layout",
-      "detail": "Every image on the page is fluid, so nothing forces the layout wider than the screen on its own."
     },
     {
       "id": "platform",
       "status": "info",
       "title": "Built on WordPress",
       "detail": "The fixes below are CSS in your theme plus one small script, so nothing needs rebuilding.",
-      "evidence": ["wp-content/themes/harbourlane"]
+      "evidence": [
+        "wp-content/themes/harbourlane"
+      ]
+    },
+    {
+      "id": "viewport-meta",
+      "status": "pass",
+      "scope": "general",
+      "title": "The viewport tag is set correctly",
+      "detail": "width=device-width, initial-scale=1 is present, so the page uses the real screen width rather than a fixed one.",
+      "evidence": [
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+      ]
+    },
+    {
+      "id": "tap-targets",
+      "status": "warn",
+      "scope": "general",
+      "title": "Some tap targets are close together",
+      "detail": "The opening hours links in the footer are 28px apart. Around 44px is comfortable for a thumb on any phone.",
+      "evidence": [
+        ".footer-hours a (28px gap)"
+      ]
+    },
+    {
+      "id": "text-size",
+      "status": "pass",
+      "scope": "general",
+      "title": "Text stays readable at every size",
+      "detail": "Body text renders at 16px or more on every screen checked, with no forced zoom."
+    },
+    {
+      "id": "images-responsive",
+      "status": "pass",
+      "scope": "general",
+      "title": "Images scale with the layout",
+      "detail": "Every image on the page is fluid, so nothing forces the layout wider than the screen on its own."
+    },
+    {
+      "id": "images-lowres",
+      "status": "warn",
+      "scope": "general",
+      "title": "Three images are smaller than the space they fill",
+      "detail": "The team photographs are 600px wide and are displayed at up to 980px on a laptop, which looks soft. This is not to do with the fold.",
+      "evidence": [
+        "/wp-content/uploads/team-600.jpg (natural 600px, displayed 980px)"
+      ]
+    },
+    {
+      "id": "image-weight",
+      "status": "warn",
+      "scope": "general",
+      "title": "The hero image is 1.8 MB",
+      "detail": "It is the largest single file on the page and it loads before anything else is drawn.",
+      "evidence": [
+        "/wp-content/uploads/hero.jpg — 1.8 MB"
+      ]
+    },
+    {
+      "id": "lazy-loading",
+      "status": "warn",
+      "scope": "general",
+      "title": "Nothing below the first screen is loaded lazily",
+      "detail": "All 24 images load at once. Adding loading=\"lazy\" to the ones further down the page would cut what a visitor has to download.",
+      "evidence": [
+        "24 <img> elements, 0 with loading=\"lazy\""
+      ]
     }
   ],
   "shots": [
-    { "kind": "folded", "file": "folded.png", "width": 466, "height": 678, "fullHeight": 4820 },
-    { "kind": "unfolded", "file": "unfolded.png", "width": 890, "height": 626, "fullHeight": 3960 },
-    { "kind": "split", "file": "split.png", "width": 440, "height": 626, "fullHeight": 5140 },
-    { "kind": "fold-transition", "file": "fold-transition.png", "width": 890, "height": 626, "fullHeight": 4310 }
+    {
+      "kind": "folded",
+      "file": "folded.png",
+      "width": 466,
+      "height": 678,
+      "fullHeight": 4820
+    },
+    {
+      "kind": "unfolded",
+      "file": "unfolded.png",
+      "width": 890,
+      "height": 626,
+      "fullHeight": 3960
+    },
+    {
+      "kind": "split",
+      "file": "split.png",
+      "width": 440,
+      "height": 626,
+      "fullHeight": 5140
+    },
+    {
+      "kind": "fold-transition",
+      "file": "fold-transition.png",
+      "width": 890,
+      "height": 626,
+      "fullHeight": 4310
+    },
+    {
+      "kind": "other",
+      "file": "other-iphone.png",
+      "width": 402,
+      "height": 874,
+      "fullHeight": 5320,
+      "label": "iPhone 17",
+      "description": "The phone most of your visitors carry today."
+    },
+    {
+      "kind": "other",
+      "file": "other-ipad.png",
+      "width": 834,
+      "height": 1194,
+      "fullHeight": 4180,
+      "label": "iPad",
+      "description": "A tablet held upright."
+    },
+    {
+      "kind": "other",
+      "file": "other-laptop.png",
+      "width": 1280,
+      "height": 800,
+      "fullHeight": 3640,
+      "label": "Laptop",
+      "description": "A typical laptop screen."
+    }
+  ],
+  "videos": [
+    {
+      "kind": "folded",
+      "file": "folded.webm",
+      "width": 466,
+      "height": 678,
+      "durationMs": 4000
+    },
+    {
+      "kind": "unfolded",
+      "file": "unfolded.webm",
+      "width": 890,
+      "height": 626,
+      "durationMs": 4000
+    }
   ],
   "foldTransition": {
     "differs": true,

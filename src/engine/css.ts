@@ -13,6 +13,7 @@ export interface CssInfo {
   mediaQueries: MediaQueryInfo[];
   widthQueries: MediaQueryInfo[];      // queries that mention a width at all
   trapQueries: MediaQueryInfo[];       // width breakpoints in the folded trap band
+  landscapeQueries: MediaQueryInfo[];  // orientation: landscape rules that would fire at 890×626
   vh: { count: number; dvhOrSvh: number; samples: string[] };
   fixedWidthRules: string[];           // e.g. "width: 960px" on selectors that look like page containers
 }
@@ -62,6 +63,17 @@ export function analyseCss(cssTexts: string[]): CssInfo {
     return true;
   });
 
+  // Landscape rules meant for a rotated phone fire the moment the Duo opens (890 wide, 626 tall).
+  const seenL = new Set<string>();
+  const landscapeQueries = mediaQueries.filter((q) => {
+    if (!/orientation\s*:\s*landscape/i.test(q.raw)) return false;
+    if (q.minWidth !== undefined && q.minWidth > 890) return false;
+    if (q.maxWidth !== undefined && q.maxWidth < 890) return false;
+    if (seenL.has(q.raw)) return false;
+    seenL.add(q.raw);
+    return true;
+  });
+
   const vhMatches = css.match(/(?:min-|max-)?height\s*:\s*(?:calc\([^)]*)?100\s*vh/gi) ?? [];
   const dvhMatches = css.match(/(?:min-|max-)?height\s*:\s*(?:calc\([^)]*)?100\s*[ds]vh/gi) ?? [];
   const vhSamples = Array.from(new Set(vhMatches.map((s) => s.replace(/\s+/g, ' ')))).slice(0, 5);
@@ -86,6 +98,7 @@ export function analyseCss(cssTexts: string[]): CssInfo {
     mediaQueries,
     widthQueries,
     trapQueries,
+    landscapeQueries,
     vh: { count: vhMatches.length, dvhOrSvh: dvhMatches.length, samples: vhSamples },
     fixedWidthRules,
   };
