@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { Result, Shot } from './types';
+import type { Result, Shot, Video } from './types';
 import { VIEWPORTS, EMULATION_NOTE, UNFOLDED } from './device';
 import { normaliseUrl, assertPublicHost, UrlError } from './url';
 import { renderAll, RenderError, type RenderOutput } from './render';
@@ -20,9 +20,12 @@ export interface RunOptions {
   allowLocal?: boolean;         // skip the SSRF guard (tests only)
   engine?: 'webkit' | 'chromium';
   scale?: number;
+  videos?: boolean;             // record short clips (default true)
+  others?: boolean;             // render comparison screens (default true)
 }
 
-export const SHOT_FILES = ['folded.png', 'unfolded.png', 'split.png', 'fold-transition.png'] as const;
+export const SHOT_FILES = ['folded.png', 'unfolded.png', 'split.png', 'fold-transition.png', 'other-iphone.png', 'other-ipad.png', 'other-laptop.png'] as const;
+export const VIDEO_FILES = ['folded.webm', 'unfolded.webm'] as const;
 
 async function writeShots(render: RenderOutput, outDir: string): Promise<Shot[]> {
   await fs.mkdir(outDir, { recursive: true });
@@ -37,7 +40,34 @@ async function writeShots(render: RenderOutput, outDir: string): Promise<Shot[]>
     await fs.writeFile(path.join(outDir, e.file), e.cap.png);
     shots.push({ kind: e.kind, file: e.file, width: e.cap.viewport.width, height: e.cap.viewport.height, fullHeight: e.cap.fullHeight });
   }
+  for (const o of render.others) {
+    const file = `other-${o.screen.id}.png`;
+    await fs.writeFile(path.join(outDir, file), o.png);
+    shots.push({ kind: 'other', file, width: o.screen.width, height: o.screen.height, fullHeight: o.fullHeight, label: o.screen.label, description: o.screen.description });
+  }
   return shots;
+}
+
+async function moveVideos(render: RenderOutput, outDir: string): Promise<Video[]> {
+  const out: Video[] = [];
+  for (const v of render.videos) {
+    const file = `${v.kind}.webm`;
+    const dest = path.join(outDir, file);
+    try {
+      await fs.rename(v.path, dest).catch(async () => {
+        await fs.copyFile(v.path, dest);
+        await fs.unlink(v.path).catch(() => {});
+      });
+      out.push({ kind: v.kind, file, width: v.width, height: v.height, durationMs: v.durationMs });
+    } catch {
+      /* clip lost; the PNG still stands */
+    }
+  }
+  // Sweep any leftover Playwright-named recordings.
+  for (const f of await fs.readdir(outDir).catch(() => [] as string[])) {
+    if (/^[0-9a-f]{32}\.webm$/i.test(f)) await fs.unlink(path.join(outDir, f)).catch(() => {});
+  }
+  return out;
 }
 
 /**
@@ -62,7 +92,14 @@ export async function runCheck(input: string, opts: RunOptions): Promise<Result>
 
   let render: RenderOutput;
   try {
-    render = await renderAll(url.toString(), { onProgress: progress, engine: opts.engine, scale: opts.scale });
+    if (opts.videos !== false) await fs.mkdir(opts.outDir, { recursive: true });
+    render = await renderAll(url.toString(), {
+      onProgress: progress,
+      engine: opts.engine,
+      scale: opts.scale,
+      videoDir: opts.videos === false ? undefined : opts.outDir,
+      others: opts.others,
+    });
   } catch (e) {
     const msg = e instanceof RenderError ? e.message : 'The page could not be rendered.';
     return {
@@ -95,6 +132,7 @@ export async function runCheck(input: string, opts: RunOptions): Promise<Result>
 
   progress('Saving screenshots');
   const shots = await writeShots(render, opts.outDir);
+  const videos = await moveVideos(render, opts.outDir);
 
   return {
     ...base,
@@ -107,6 +145,7 @@ export async function runCheck(input: string, opts: RunOptions): Promise<Result>
     summary: cls.summary,
     findings,
     shots,
+    videos,
     foldTransition: {
       differs: fold.differs,
       pixelDiffPct: fold.pixelDiffPct,

@@ -1,6 +1,6 @@
 import { webkit, chromium, type Browser, type BrowserContext, type Page, type Response } from 'playwright';
 import type { ViewportSpec } from './types';
-import { FOLDED, UNFOLDED, SPLIT, USER_AGENT } from './device';
+import { FOLDED, UNFOLDED, SPLIT, USER_AGENT, OTHER_SCREENS, VIDEO_SECONDS, type OtherScreen } from './device';
 import { PROBE_SOURCE, type DomMetrics } from './probe';
 
 export class RenderError extends Error {
@@ -26,6 +26,22 @@ export interface RenderOutput {
   unfolded: Capture;
   split: Capture;
   foldTransition: Capture;   // folded load, then resized to unfolded without reload
+  others: OtherCapture[];    // comparison screens, screenshot only
+  videos: VideoCapture[];    // short clips with the page's own motion running
+}
+
+export interface OtherCapture {
+  screen: OtherScreen;
+  png: Buffer;
+  fullHeight: number;
+}
+
+export interface VideoCapture {
+  kind: 'folded' | 'unfolded';
+  path: string;             // temp path on disk; caller moves it
+  width: number;
+  height: number;
+  durationMs: number;
 }
 
 export interface RenderOptions {
@@ -34,6 +50,8 @@ export interface RenderOptions {
   maxPageHeight?: number;   // CSS px cap for full-page shots
   scale?: number;           // deviceScaleFactor
   engine?: 'webkit' | 'chromium';
+  videoDir?: string;        // where to record clips; no clips when unset
+  others?: boolean;         // render the comparison screens (default true)
 }
 
 const STILL_CSS = `*, *::before, *::after { animation-play-state: paused !important; transition: none !important; caret-color: transparent !important; scroll-behavior: auto !important; }`;
@@ -59,18 +77,66 @@ export async function closeBrowser(): Promise<void> {
   }
 }
 
-async function newContext(browser: Browser, vp: ViewportSpec, scale: number): Promise<BrowserContext> {
+interface ContextOptions {
+  mobile?: boolean;
+  motion?: boolean;          // let animations and videos run (clips)
+  videoDir?: string;         // record a clip
+}
+
+async function newContext(browser: Browser, vp: { width: number; height: number }, scale: number, o: ContextOptions = {}): Promise<BrowserContext> {
+  const mobile = o.mobile ?? true;
   return browser.newContext({
     viewport: { width: vp.width, height: vp.height },
     deviceScaleFactor: scale,
-    isMobile: true,
-    hasTouch: true,
-    userAgent: USER_AGENT,
+    isMobile: mobile,
+    hasTouch: mobile,
+    userAgent: mobile ? USER_AGENT : undefined,
     locale: 'en-GB',
-    reducedMotion: 'reduce',
+    reducedMotion: o.motion ? 'no-preference' : 'reduce',
     ignoreHTTPSErrors: true,
     serviceWorkers: 'block',
+    recordVideo: o.videoDir ? { dir: o.videoDir, size: { width: vp.width, height: vp.height } } : undefined,
   });
+}
+
+/** Screenshot-only capture at a comparison screen size. */
+async function otherShot(browser: Browser, url: string, screen: OtherScreen, timeout: number, maxHeight: number): Promise<OtherCapture> {
+  const ctx = await newContext(browser, screen, 1.5, { mobile: screen.mobile });
+  try {
+    const page = await ctx.newPage();
+    await load(page, url, timeout);
+    await warmLazyContent(page, maxHeight);
+    const { png, fullHeight } = await shoot(page, { ...screen, id: 'folded', description: '' }, maxHeight);
+    return { screen, png, fullHeight };
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+}
+
+/** Record a few seconds of the page with its own motion running. Never fails the run. */
+async function recordClip(browser: Browser, url: string, kind: 'folded' | 'unfolded', vp: ViewportSpec, dir: string, timeout: number): Promise<VideoCapture | null> {
+  const ctx = await newContext(browser, vp, 1, { motion: true, videoDir: dir });
+  let page: Page | null = null;
+  try {
+    page = await ctx.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+    await page.waitForLoadState('load', { timeout: 8000 }).catch(() => {});
+    // Nudge autoplay media that waits for a gesture, then let it run.
+    await page.evaluate(() => document.querySelectorAll('video').forEach((v) => { v.muted = true; v.play().catch(() => {}); })).catch(() => {});
+    await page.waitForTimeout(VIDEO_SECONDS * 1000);
+  } catch {
+    await ctx.close().catch(() => {});
+    return null;
+  }
+  const video = page.video();
+  await ctx.close().catch(() => {});
+  if (!video) return null;
+  try {
+    const p = await video.path();
+    return { kind, path: p, width: vp.width, height: vp.height, durationMs: VIDEO_SECONDS * 1000 };
+  } catch {
+    return null;
+  }
 }
 
 function describeGotoError(e: unknown): RenderError {
@@ -219,7 +285,20 @@ export async function renderAll(url: string, opts: RenderOptions = {}): Promise<
       await ctx.close().catch(() => {});
     }
   };
-  const [unfolded, split] = await Promise.all([fresh(UNFOLDED, 'unfolded'), fresh(SPLIT, 'split')]);
+  const wantOthers = opts.others ?? true;
+  const othersP = wantOthers
+    ? Promise.all(OTHER_SCREENS.map((s) => otherShot(browser, url, s, navTimeoutMs, maxPageHeight).catch(() => null)))
+    : Promise.resolve([] as (OtherCapture | null)[]);
+  const clipsP = opts.videoDir
+    ? (progress('Recording short clips'), Promise.all([
+        recordClip(browser, url, 'folded', FOLDED, opts.videoDir, navTimeoutMs),
+        recordClip(browser, url, 'unfolded', UNFOLDED, opts.videoDir, navTimeoutMs),
+      ]))
+    : Promise.resolve([] as (VideoCapture | null)[]);
 
-  return { engine, finalUrl, status, html, cssTexts, folded, unfolded, split, foldTransition };
+  const [unfolded, split, othersRaw, clipsRaw] = await Promise.all([fresh(UNFOLDED, 'unfolded'), fresh(SPLIT, 'split'), othersP, clipsP]);
+  const others = othersRaw.filter((o): o is OtherCapture => o !== null);
+  const videos = clipsRaw.filter((v): v is VideoCapture => v !== null);
+
+  return { engine, finalUrl, status, html, cssTexts, folded, unfolded, split, foldTransition, others, videos };
 }

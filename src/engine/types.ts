@@ -1,6 +1,6 @@
 // Contract between the engine and the web UI. Keep additive.
 export type ViewportId = 'folded' | 'unfolded' | 'split';
-export type ShotKind = ViewportId | 'fold-transition';
+export type ShotKind = ViewportId | 'fold-transition' | 'other';
 export type Status = 'pass' | 'warn' | 'fail' | 'info';
 export type Outcome = 'passes' | 'patchable' | 'needs-more';
 export type Platform = 'wordpress' | 'squarespace' | 'wix' | 'webflow' | 'shopify' | 'custom' | 'unknown';
@@ -28,6 +28,16 @@ export interface Shot {
   width: number;        // viewport width
   height: number;       // viewport height
   fullHeight: number;   // full-page height captured
+  label?: string;       // for kind 'other': e.g. "iPhone 17"
+  description?: string; // for kind 'other': one plain sentence
+}
+
+export interface Video {
+  kind: 'folded' | 'unfolded';
+  file: string;         // e.g. "folded.webm"; the page as it plays for a few seconds after load
+  width: number;
+  height: number;
+  durationMs: number;
 }
 
 export interface FoldTransition {
@@ -50,6 +60,7 @@ export interface Result {
   summary: string;          // one sentence for the top of the results page
   findings: Finding[];      // ordered: fails, warns, passes
   shots: Shot[];
+  videos?: Video[];         // short clips at the folded and unfolded sizes, animations running
   foldTransition: FoldTransition;
   viewports: ViewportSpec[];
   emulationNote: string;

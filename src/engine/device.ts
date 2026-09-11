@@ -42,3 +42,14 @@ export const USER_AGENT =
 
 export const EMULATION_NOTE =
   `Emulated at the ${DEVICE_NAME}'s screen sizes in a WebKit browser. Real hardware ships 23 October 2026; we will re-run every check on a real device then.`;
+
+// Screens visitors use today, rendered for comparison only (no checks run on these).
+export interface OtherScreen { id: 'iphone' | 'ipad' | 'laptop'; label: string; width: number; height: number; description: string; mobile: boolean }
+export const OTHER_SCREENS: OtherScreen[] = [
+  { id: 'iphone', label: 'iPhone 17', width: 402, height: 874, description: 'A current non-folding iPhone.', mobile: true },
+  { id: 'ipad', label: 'iPad', width: 834, height: 1194, description: 'An 11-inch iPad, upright.', mobile: true },
+  { id: 'laptop', label: 'Laptop', width: 1280, height: 800, description: 'A typical laptop browser window.', mobile: false },
+];
+
+// Short clips at the folded and unfolded sizes, with the page's own animations and videos running.
+export const VIDEO_SECONDS = 6;
