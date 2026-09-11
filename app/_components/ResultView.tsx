@@ -6,6 +6,7 @@ import FoldViewer from './FoldViewer';
 import RenderFrame from './RenderFrame';
 import Findings from './Findings';
 import CopyLink from './CopyLink';
+import CheckAgain from './CheckAgain';
 import Offer from './Offer';
 
 const OUTCOME_WORD: Record<Outcome, string> = {
@@ -26,7 +27,7 @@ export default function ResultView({ result }: { result: Result }) {
   const others = shots.filter((s) => s.kind === 'other');
   const duoFindings = result.findings.filter((f) => (f.scope ?? 'duo') === 'duo');
   const generalFindings = result.findings.filter((f) => f.scope === 'general');
-  const hasPartTwo = others.length > 0 || generalFindings.length > 0;
+
 
   return (
     <div className="wrap">
@@ -38,6 +39,8 @@ export default function ResultView({ result }: { result: Result }) {
           <span>{OUTCOME_WORD[outcome]}</span>
           <span className="sep" aria-hidden="true" />
           <CopyLink />
+          <span className="sep" aria-hidden="true" />
+          <CheckAgain url={url} quiet />
         </div>
       </div>
 
@@ -77,36 +80,39 @@ export default function ResultView({ result }: { result: Result }) {
         <Findings findings={duoFindings} viewports={viewports} />
       </section>
 
-      {hasPartTwo ? (
-        <section className="block part-two">
-          <h2>Other screens and general insights</h2>
-          <p>
-            Beyond the Duo: the same page on the screens your visitors use today, and the things
-            any checker would tell you.
-          </p>
-          {others.length > 0 ? (
-            <div className="renders">
-              {others.map((s) => (
-                <RenderFrame
-                  key={s.file}
-                  jobId={id}
-                  label={s.label ?? 'Other screen'}
-                  width={s.width}
-                  height={s.height}
-                  description={s.description}
-                  shot={s}
-                />
-              ))}
-            </div>
-          ) : null}
-          {generalFindings.length > 0 ? (
-            <>
-              <h3 className="list-head">General</h3>
-              <Findings findings={generalFindings} viewports={viewports} />
-            </>
-          ) : null}
-        </section>
-      ) : null}
+      <section className="block part-two">
+        <h2>Other screens and general insights</h2>
+        <p>
+          Beyond the Duo: the same page on the screens your visitors use today, and the things any
+          checker would tell you.
+        </p>
+        {others.length > 0 ? (
+          <div className="renders">
+            {others.map((s) => (
+              <RenderFrame
+                key={s.file}
+                jobId={id}
+                label={s.label ?? 'Other screen'}
+                width={s.width}
+                height={s.height}
+                description={s.description}
+                shot={s}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="not-captured">
+            <p>Comparison screens were not captured for this check.</p>
+            <CheckAgain url={url} />
+          </div>
+        )}
+        <h3 className="list-head">General</h3>
+        {generalFindings.length > 0 ? (
+          <Findings findings={generalFindings} viewports={viewports} />
+        ) : (
+          <p className="note">No general findings for this page.</p>
+        )}
+      </section>
 
       {outcome === 'passes' ? (
         <section className="calm">

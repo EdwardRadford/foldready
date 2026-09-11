@@ -12,15 +12,17 @@ function clientIp(req: Request): string {
 
 export async function POST(req: Request) {
   let url = '';
+  let fresh = false;
   try {
-    const body = (await req.json()) as { url?: unknown };
+    const body = (await req.json()) as { url?: unknown; fresh?: unknown };
     url = typeof body.url === 'string' ? body.url : '';
+    fresh = body.fresh === true;
   } catch {
     return Response.json({ error: 'Send a web address to check.' }, { status: 400 });
   }
 
   try {
-    const job = await createJob(url, clientIp(req));
+    const job = await createJob(url, clientIp(req), fresh);
     return Response.json({ id: job.id });
   } catch (err) {
     if (err instanceof RateLimitError) {

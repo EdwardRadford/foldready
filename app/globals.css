@@ -240,6 +240,7 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
 .fold-controls { margin-bottom: calc(var(--s) * 2); }
 @media (max-width: 820px) { .fold-controls { margin-top: calc(var(--s) * 3); } }
 .fold-state { color: var(--muted); font-size: 14px; margin-top: calc(var(--s) * 1.5); max-width: 56ch; }
+.fold-small { color: var(--muted); font-size: 13px; margin-top: var(--s); max-width: 56ch; }
 
 .callout {
   margin-top: calc(var(--s) * 3);
@@ -310,6 +311,9 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
   margin-top: calc(var(--s) * 8);
 }
 .list-head { font-size: 16px; margin-top: calc(var(--s) * 6); }
+.list-head + p.note { margin-top: calc(var(--s) * 1.5); }
+.not-captured { margin-top: calc(var(--s) * 3); }
+.not-captured p { color: var(--muted); margin-bottom: calc(var(--s) * 2); }
 
 /* ---------- findings ---------- */
 

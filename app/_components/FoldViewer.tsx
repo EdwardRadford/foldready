@@ -66,9 +66,10 @@ export default function FoldViewer({
   // through rather than leaving an empty white screen.
   const stillMissing = missing[stillFile] === true || !have(stillFile);
 
-  // One scale for both states, so only the right edge moves when the phone opens.
+  // One scale and one height for every stage, so the only motion is the right edge sweeping out.
   const scaleW = unfolded.width + BEZEL * 2;
-  const scaleH = Math.max(folded.height, unfolded.height) + BEZEL * 2;
+  const frameH = folded.height + BEZEL * 2;
+  const extraPx = folded.height - unfolded.height; // shown taller than the real inner screen
 
   const caption =
     view === 'after-unfold'
@@ -84,11 +85,8 @@ export default function FoldViewer({
   return (
     <div className="fold-row">
       <div className="fold-stage">
-        <div className="fold-box" style={cssVars({ '--scale-w': scaleW, '--scale-h': scaleH })}>
-          <div
-            className="phone"
-            style={cssVars({ '--w': screen.width + BEZEL * 2, '--h': screen.height + BEZEL * 2 })}
-          >
+        <div className="fold-box" style={cssVars({ '--scale-w': scaleW, '--scale-h': frameH })}>
+          <div className="phone" style={cssVars({ '--w': screen.width + BEZEL * 2, '--h': frameH })}>
             <div className="phone-screen">
               {stillMissing ? (
                 <div className="shot-missing">
@@ -169,6 +167,11 @@ export default function FoldViewer({
         </div>
 
         <p className="fold-state">{caption}</p>
+        {open && extraPx > 0 ? (
+          <p className="fold-small">
+            Shown {extraPx}px taller than the real inner screen so the frame stays still.
+          </p>
+        ) : null}
         <p className="fold-state">{foldTransition.note}</p>
 
         {foldBackFail ? <div className="callout">{foldBackFail.title}</div> : null}

@@ -1,7 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Result, Shot, Video } from './types';
-import { VIEWPORTS, EMULATION_NOTE, UNFOLDED, FOLDED } from './device';
+import { VIEWPORTS, EMULATION_NOTE, UNFOLDED, FOLDED, ENGINE_VERSION } from './device';
+export { ENGINE_VERSION };
 import { normaliseUrl, assertPublicHost, UrlError } from './url';
 import { renderAll, RenderError, type RenderOutput } from './render';
 import { analyseCss, analyseViewportMeta, detectPlatform } from './css';
@@ -85,6 +86,7 @@ export async function runCheck(input: string, opts: RunOptions): Promise<Result>
 
   const base: Omit<Result, 'outcome' | 'score' | 'summary' | 'findings' | 'shots' | 'foldTransition' | 'platform' | 'engine' | 'finalUrl' | 'durationMs'> = {
     id: opts.id,
+    engineVersion: ENGINE_VERSION,
     url: url.toString(),
     checkedAt: new Date().toISOString(),
     viewports: VIEWPORTS,

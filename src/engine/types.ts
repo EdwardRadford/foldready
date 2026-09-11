@@ -50,6 +50,7 @@ export interface FoldTransition {
 
 export interface Result {
   id: string;
+  engineVersion?: number;   // ENGINE_VERSION that produced this result
   url: string;
   finalUrl: string;
   checkedAt: string;        // ISO

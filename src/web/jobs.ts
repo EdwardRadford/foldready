@@ -5,6 +5,8 @@ import path from 'node:path';
 import { randomInt } from 'node:crypto';
 import type { Job, Result } from '@/engine/types';
 import { UrlError, normaliseUrl, assertPublicHost } from '@/engine/url';
+// device.ts is plain constants: importing it here does not pull Playwright into a route bundle.
+import { ENGINE_VERSION } from '@/engine/device';
 
 const DATA_ROOT = path.join(process.cwd(), 'data', 'jobs');
 
@@ -108,31 +110,52 @@ function rateCheck(ip: string): void {
   store.hits.set(ip, seen);
 }
 
-function findCached(url: string): Job | undefined {
+function checkedAtMs(job: Job): number {
+  const at = Date.parse(job.result?.checkedAt ?? job.createdAt);
+  return Number.isFinite(at) ? at : 0;
+}
+
+async function findCached(url: string): Promise<Job | undefined> {
   const cutoff = Date.now() - CACHE_MS;
-  let best: Job | undefined;
-  for (const job of store.jobs.values()) {
-    if (job.state !== 'done' || job.url !== url) continue;
-    const at = Date.parse(job.result?.checkedAt ?? job.createdAt);
-    if (!Number.isFinite(at) || at < cutoff) continue;
-    if (!best || at > Date.parse(best.result?.checkedAt ?? best.createdAt)) best = job;
+  const candidates = [...store.jobs.values()]
+    .filter(
+      (job) =>
+        job.state === 'done' &&
+        job.url === url &&
+        // A result from an older engine is missing whole sections; re-run it rather than serve it.
+        job.result?.engineVersion === ENGINE_VERSION &&
+        checkedAtMs(job) >= cutoff,
+    )
+    .sort((a, b) => checkedAtMs(b) - checkedAtMs(a));
+
+  for (const job of candidates) {
+    try {
+      // A job whose screenshots have been cleaned up is not a usable cache hit.
+      await fs.access(jobFile(job.id));
+      return job;
+    } catch {
+      store.jobs.delete(job.id);
+    }
   }
-  return best;
+  return undefined;
 }
 
 /**
  * Queue a check. Returns an existing recent result for the same address instead of
- * running the browser twice. Throws UrlError (plain English) or RateLimitError.
+ * running the browser twice, unless `fresh` is set or the cached result came from an older
+ * engine. Throws UrlError (plain English) or RateLimitError.
  */
-export async function createJob(input: string, ip = 'unknown'): Promise<Job> {
+export async function createJob(input: string, ip = 'unknown', fresh = false): Promise<Job> {
   await hydrate();
 
   const u = normaliseUrl(input);
   await assertPublicHost(u);
   const url = u.toString();
 
-  const cached = findCached(url);
-  if (cached) return cached;
+  if (!fresh) {
+    const cached = await findCached(url);
+    if (cached) return cached;
+  }
 
   rateCheck(ip);
 
