@@ -1,0 +1,129 @@
+{
+  "id": "sample",
+  "url": "https://harbourlane-dental.co.uk/",
+  "finalUrl": "https://harbourlane-dental.co.uk/",
+  "checkedAt": "2026-09-11T09:42:18.000Z",
+  "durationMs": 38420,
+  "engine": "webkit",
+  "platform": "wordpress",
+  "outcome": "patchable",
+  "score": 58,
+  "summary": "Your site works folded, but the page spills sideways and the header covers the booking button once the phone is opened.",
+  "findings": [
+    {
+      "id": "overflow-unfolded",
+      "status": "fail",
+      "title": "The page scrolls sideways on the unfolded screen",
+      "detail": "Content sits 74px wider than the screen at 890 x 626, so the whole page can be dragged left and right. The gallery row is the widest thing on the page.",
+      "viewport": "unfolded",
+      "evidence": [
+        ".gallery-row { width: 964px }",
+        "document.scrollWidth = 964, window.innerWidth = 890",
+        "second widest: .testimonial-strip (912px)"
+      ]
+    },
+    {
+      "id": "sticky-header-height",
+      "status": "fail",
+      "title": "The sticky header covers the booking button",
+      "detail": "The header keeps its 96px mobile height on the unfolded screen and overlaps the Book an appointment button, which sits 62px from the top of the page.",
+      "viewport": "unfolded",
+      "evidence": ["header.site-header { position: sticky; height: 96px }", ".btn-book { top: 62px }"]
+    },
+    {
+      "id": "breakpoint-trap-folded",
+      "status": "warn",
+      "title": "A breakpoint lands inside the folded width",
+      "detail": "A media query switches layout at 480px, which is inside the folded screen's 466px band. Small changes to text size flip the page between two layouts.",
+      "viewport": "folded",
+      "evidence": ["@media (min-width: 480px)", "folded viewport width: 466px"]
+    },
+    {
+      "id": "vh-hero",
+      "status": "warn",
+      "title": "The hero is sized with 100vh",
+      "detail": "The opening panel is 100vh tall, so on the short unfolded screen the practice name and the phone number sit below the first screenful.",
+      "viewport": "unfolded",
+      "evidence": [".hero { min-height: 100vh }"]
+    },
+    {
+      "id": "tap-targets-split",
+      "status": "warn",
+      "title": "Two links are close together in split view",
+      "detail": "The opening hours links are 28px apart in the footer at 440px wide, which is tight for a thumb.",
+      "viewport": "split",
+      "evidence": [".footer-hours a (28px gap)"]
+    },
+    {
+      "id": "resize-listeners",
+      "status": "warn",
+      "title": "The slider does not re-measure when the phone opens",
+      "detail": "The homepage slider reads its width once on load. After the fold it keeps the folded width and leaves a blank column on the right.",
+      "viewport": "unfolded",
+      "evidence": ["no resize listener bound by slick.min.js", ".slick-track width unchanged after resize"]
+    },
+    {
+      "id": "text-size",
+      "status": "pass",
+      "title": "Text stays readable at every size",
+      "detail": "Body text renders at 16px or more on all three screens, with no forced zoom.",
+      "viewport": "folded"
+    },
+    {
+      "id": "viewport-meta",
+      "status": "pass",
+      "title": "The viewport tag is set correctly",
+      "detail": "width=device-width, initial-scale=1 is present, so the page uses the real screen width rather than a fixed one.",
+      "evidence": ["<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"]
+    },
+    {
+      "id": "images-responsive",
+      "status": "pass",
+      "title": "Images scale with the layout",
+      "detail": "Every image on the page is fluid, so nothing forces the layout wider than the screen on its own."
+    },
+    {
+      "id": "platform",
+      "status": "info",
+      "title": "Built on WordPress",
+      "detail": "The fixes below are CSS in your theme plus one small script, so nothing needs rebuilding.",
+      "evidence": ["wp-content/themes/harbourlane"]
+    }
+  ],
+  "shots": [
+    { "kind": "folded", "file": "folded.png", "width": 466, "height": 678, "fullHeight": 4820 },
+    { "kind": "unfolded", "file": "unfolded.png", "width": 890, "height": 626, "fullHeight": 3960 },
+    { "kind": "split", "file": "split.png", "width": 440, "height": 626, "fullHeight": 5140 },
+    { "kind": "fold-transition", "file": "fold-transition.png", "width": 890, "height": 626, "fullHeight": 4310 }
+  ],
+  "foldTransition": {
+    "differs": true,
+    "pixelDiffPct": 31.4,
+    "layoutShiftCount": 12,
+    "note": "After the phone is opened the page keeps most of its folded layout until it is reloaded: the slider stays narrow and the gallery row is still the folded width."
+  },
+  "viewports": [
+    {
+      "id": "folded",
+      "label": "Folded",
+      "width": 466,
+      "height": 678,
+      "description": "The outer screen, held upright. Wider than any earlier iPhone, but short."
+    },
+    {
+      "id": "unfolded",
+      "label": "Unfolded",
+      "width": 890,
+      "height": 626,
+      "description": "The inner screen opened flat. Tablet width, phone height."
+    },
+    {
+      "id": "split",
+      "label": "Split View",
+      "width": 440,
+      "height": 626,
+      "description": "Half of the inner screen, with two apps side by side."
+    }
+  ],
+  "emulationNote": "Emulated at the iPhone Duo's screen sizes in a WebKit browser. Real hardware ships 23 October 2026; we will re-run every check on a real device then."
+}

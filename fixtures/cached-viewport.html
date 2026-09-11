@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cached viewport fixture</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; }
+  header { background: #135; color: #fff; padding: 16px; }
+  nav a { color: #fff; margin-right: 12px; font-size: 13px; }
+  .hero { min-height: 100vh; background: #eef; display: flex; align-items: center; justify-content: center; }
+  .grid { display: grid; gap: 16px; padding: 16px; }
+  .card { background: #f4f4f4; padding: 16px; }
+  .promo { width: 520px; background: #fdd; padding: 12px; }
+  @media (min-width: 450px) { .grid { grid-template-columns: 1fr 1fr 1fr; } nav a { font-size: 12px; } }
+  @media (max-width: 449px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="#">Home</a><a href="#">Menu</a><a href="#">Book</a><a href="#">Find us</a></nav>
+</header>
+<section class="hero"><h1>The Corner Cafe</h1></section>
+<div class="promo">This week: two coffees for the price of one, every morning before ten.</div>
+<div class="grid" id="grid"></div>
+<script>
+  // The classic bug: measure once at load, lay out with JS, never re-measure.
+  var width = window.innerWidth;
+  var cols = width > 700 ? 4 : 1;
+  var grid = document.getElementById('grid');
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', ' + Math.floor(width / cols - 24) + 'px)';
+  for (var i = 0; i < 8; i++) {
+    var c = document.createElement('div');
+    c.className = 'card';
+    c.style.width = Math.floor(width / cols - 56) + 'px';
+    c.textContent = 'Card ' + (i + 1) + ' sized for ' + width + 'px';
+    grid.appendChild(c);
+  }
+</script>
+</body>
+</html>

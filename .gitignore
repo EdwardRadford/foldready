@@ -1,0 +1,10 @@
+!public/**/*.png
+*.png
+*.tsbuildinfo
+.env*
+.next/
+data/
+dist/
+next-env.d.ts
+node_modules/
+out/
