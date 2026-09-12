@@ -68,7 +68,9 @@ export interface RenderOptions {
   others?: boolean;         // render the comparison screens (default true)
 }
 
-const STILL_CSS = `*, *::before, *::after { animation-play-state: paused !important; transition: none !important; caret-color: transparent !important; scroll-behavior: auto !important; }`;
+// Finish every animation and transition instantly rather than pausing them: a paused scroll-reveal
+// leaves blocks parked off to the right and fakes a horizontal overflow.
+const STILL_CSS = `*, *::before, *::after { animation-duration: 0.001s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; transition-delay: 0s !important; caret-color: transparent !important; scroll-behavior: auto !important; }`;
 
 let browserPromise: Promise<Browser> | null = null;
 let browserEngine: 'webkit' | 'chromium' = 'webkit';

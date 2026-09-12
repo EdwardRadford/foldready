@@ -18,8 +18,10 @@ export interface Classification {
 }
 
 export function classify({ findings, css, viewportMeta, folded }: ClassifyInput): Classification {
-  const fails = findings.filter((f) => f.status === 'fail');
-  const warns = findings.filter((f) => f.status === 'warn');
+  // Only Duo findings decide the outcome and the score. General insights are notes.
+  const duo = findings.filter((f) => f.scope !== 'general' || f.id === 'viewport-meta');
+  const fails = duo.filter((f) => f.status === 'fail');
+  const warns = duo.filter((f) => f.status === 'warn');
   const score = Math.max(0, 100 - fails.length * 20 - warns.length * 7);
   const reasons: string[] = [];
 

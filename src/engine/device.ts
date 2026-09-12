@@ -4,7 +4,7 @@ import type { ViewportSpec } from './types';
 
 export const DEVICE_NAME = 'iPhone Duo';
 // Bump when results change shape or meaning; the web app re-runs cached jobs from older versions.
-export const ENGINE_VERSION = 3;
+export const ENGINE_VERSION = 4;
 export const SCALE_FACTOR = 3;
 
 export const VIEWPORTS: ViewportSpec[] = [
