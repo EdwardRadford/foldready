@@ -1,0 +1,42 @@
+/* Admin area. Same tokens as globals.css, no icons, no emojis, flat. */
+
+.admin-page { padding: calc(var(--s) * 5) 0 calc(var(--s) * 10); }
+.admin-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s); flex-wrap: wrap; }
+.admin-head h1 { font-size: 26px; }
+.admin-counts { color: var(--muted); font-size: 14px; margin-top: var(--s); }
+
+.admin-login { max-width: 360px; padding: calc(var(--s) * 10) 0; }
+.admin-login h1 { font-size: 24px; }
+.admin-login form { margin-top: calc(var(--s) * 3); display: flex; flex-direction: column; gap: var(--s); }
+
+.chip-row { display: flex; gap: var(--s); flex-wrap: wrap; margin-top: calc(var(--s) * 3); }
+.chip {
+  font-size: 14px;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 4px calc(var(--s) * 1.5);
+  text-decoration: none;
+}
+.chip:hover { color: var(--ink); }
+.chip.on { color: var(--ink); border-color: var(--ink); background: var(--surface); }
+
+.admin-table-wrap { margin-top: calc(var(--s) * 3); overflow-x: auto; border: 1px solid var(--line); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; white-space: nowrap; }
+.admin-table th, .admin-table td { padding: calc(var(--s) * 1.25) var(--s); border-bottom: 1px solid var(--line); text-align: left; }
+.admin-table th { color: var(--muted); font-weight: 500; background: #f1efea; }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table td.url { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-table .del-btn {
+  font: inherit;
+  font-size: 13px;
+  color: var(--fail);
+  background: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  padding: 3px calc(var(--s) * 1.25);
+  cursor: pointer;
+}
+.admin-table .del-btn:hover { border-color: var(--fail); }
+
+.admin-empty { color: var(--muted); margin-top: calc(var(--s) * 3); }

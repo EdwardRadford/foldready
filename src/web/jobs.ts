@@ -201,6 +201,21 @@ export async function getJob(id: string): Promise<Job | undefined> {
   return onDisk;
 }
 
+/** All known jobs, newest first. For the admin table. */
+export async function listJobs(): Promise<Job[]> {
+  await hydrate();
+  return [...store.jobs.values()].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+}
+
+/** Drop a job from the store and delete its folder on disk. */
+export async function deleteJob(id: string): Promise<void> {
+  if (!ID_RE.test(id)) return;
+  store.jobs.delete(id);
+  await fs.rm(jobDir(id), { recursive: true, force: true }).catch(() => {});
+}
+
 export function queuePosition(id: string): number {
   const i = store.queue.indexOf(id);
   return i < 0 ? 0 : i + 1;
