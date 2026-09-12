@@ -186,16 +186,18 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
   border-radius: 26em;
 }
 .phone-screen img {
+  /* Drawn at the screen's width, full height, and scrolled on hover like the frames below. */
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
+  height: auto;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform var(--dur, 6s) linear;
 }
 .phone-screen img.on { opacity: 1; }
+.phone-screen:hover img { transform: translateY(var(--shift, 0)); }
 .phone-video {
   position: absolute;
   inset: 0;
@@ -203,17 +205,22 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
   height: 100%;
   object-fit: cover;
   object-position: top;
-  animation: fade-in 0.4s ease both;
+  opacity: 1;
+  animation: fade-in 0.4s ease;
+  transition: opacity 0.2s ease;
 }
+/* Out of the way while the visitor is scrolling the page underneath. */
+.phone-screen:hover .phone-video { opacity: 0; }
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 .phone-hinge {
+  /* A child of the frame, not of the screen, so it holds still while the page scrolls. */
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 16em;
+  bottom: 16em;
   left: 50%;
   width: 1px;
   background: var(--line-strong);
@@ -235,6 +242,9 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
   color: var(--muted);
   font-size: 13px;
 }
+
+.fold-hint { color: var(--muted); font-size: 13px; margin-top: calc(var(--s) * 1.5); }
+.fold-hint .on-touch { display: none; }
 
 .fold-lead { color: var(--muted); max-width: 46ch; margin-bottom: calc(var(--s) * 3); }
 .fold-controls { margin-bottom: calc(var(--s) * 2); }
@@ -293,6 +303,11 @@ section.block > h2 + p { margin-top: var(--s); color: var(--muted); max-width: 6
 @media (hover: none) {
   .scroller { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .scroller img { transform: none; }
+  .phone-screen { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .phone-screen img { transform: none; }
+  .phone-screen .phone-video { opacity: 1; }
+  .fold-hint .on-hover { display: none; }
+  .fold-hint .on-touch { display: inline; }
 }
 .scroller .flat {
   position: absolute;

@@ -71,6 +71,16 @@ export default function FoldViewer({
   const frameH = folded.height + BEZEL * 2;
   const extraPx = folded.height - unfolded.height; // shown taller than the real inner screen
 
+  // Scroll-on-hover, same technique as the frames below: each layer is drawn at the screen's
+  // width, so shifting it by this share of its own height brings the foot of the page into view.
+  const scrollVars = (file: string) => {
+    const shot = shots.find((sh) => sh.file === file);
+    const full = Math.max(shot?.fullHeight ?? folded.height, folded.height);
+    const shift = full > folded.height ? -(1 - folded.height / full) * 100 : 0;
+    const seconds = Math.min(14, Math.max(1.5, full / 700));
+    return cssVars({ '--shift': `${shift.toFixed(3)}%`, '--dur': `${seconds.toFixed(1)}s` });
+  };
+
   const caption =
     view === 'after-unfold'
       ? `The inner screen, ${unfolded.width} × ${unfolded.height}, after the page was resized without a reload. That is what the phone does when it opens.`
@@ -107,6 +117,7 @@ export default function FoldViewer({
                         : 'The page on the unfolded screen'
                     }
                     className={view === key ? 'on' : ''}
+                    style={scrollVars(file)}
                     onError={() => setMissing((m) => ({ ...m, [file]: true }))}
                     ref={(el) => {
                       // An image that failed before hydration never fires onError.
@@ -132,10 +143,14 @@ export default function FoldViewer({
                   onError={() => setMissing((m) => ({ ...m, [playing.file]: true }))}
                 />
               ) : null}
-              <div className={open ? 'phone-hinge on' : 'phone-hinge'} aria-hidden="true" />
             </div>
+            <div className={open ? 'phone-hinge on' : 'phone-hinge'} aria-hidden="true" />
           </div>
         </div>
+        <p className="fold-hint">
+          <span className="on-hover">Hover the phone to scroll the page.</span>
+          <span className="on-touch">Scroll inside the phone to see the page.</span>
+        </p>
       </div>
 
       <div className="fold-side">
