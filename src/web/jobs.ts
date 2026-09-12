@@ -145,8 +145,26 @@ async function findCached(url: string): Promise<Job | undefined> {
  * running the browser twice, unless `fresh` is set or the cached result came from an older
  * engine. Throws UrlError (plain English) or RateLimitError.
  */
+const RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // permalinks live a month; then the folder goes
+const SWEEP_EVERY_MS = 60 * 60 * 1000;
+let lastSweep = 0;
+
+/** Delete finished jobs older than the retention window. Runs at most hourly, never blocks a check. */
+async function sweep(): Promise<void> {
+  const now = Date.now();
+  if (now - lastSweep < SWEEP_EVERY_MS) return;
+  lastSweep = now;
+  for (const job of [...store.jobs.values()]) {
+    if (job.state === 'queued' || job.state === 'running') continue;
+    if (now - checkedAtMs(job) < RETENTION_MS) continue;
+    store.jobs.delete(job.id);
+    await fs.rm(jobDir(job.id), { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 export async function createJob(input: string, ip = 'unknown', fresh = false): Promise<Job> {
   await hydrate();
+  void sweep();
 
   const u = normaliseUrl(input);
   await assertPublicHost(u);
