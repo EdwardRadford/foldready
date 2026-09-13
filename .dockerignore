@@ -1,0 +1,12 @@
+node_modules
+.next
+data
+out
+documents
+fixtures
+test
+app
+src/web
+.git
+*.log
+tsconfig.tsbuildinfo

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "CommonJS",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "outDir": "../dist",
+    "rootDir": ".."
+  },
+  "include": ["./**/*.ts", "../src/engine/**/*.ts"],
+  "exclude": ["node_modules"]
+}
