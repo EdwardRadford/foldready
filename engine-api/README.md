@@ -63,13 +63,7 @@ docker build -t foldready-engine -f engine-api/Dockerfile .
 docker run --rm -e ENGINE_SECRET=dev-secret -p 8792:8080 foldready-engine
 ```
 
-Built and run locally on 2026-09-13: ~4.2 GB with the shared root `node_modules` (Next.js,
-Wrangler, etc. all installed alongside the engine's own deps), `/healthz` and a full `POST /check`
-against `https://example.com` both passed inside the container. After giving `engine-api/` its own
-`package.json`/`package-lock.json` (same day) the Dockerfile was updated to install from it
-instead — expect an image well under 2.5 GB (the base image alone is ~2 GB) since it now only adds
-`playwright`, `pixelmatch`, `pngjs`, `hono` and `@hono/node-server`. Not yet rebuilt and measured;
-Docker Desktop was down when this change was made — see STATE/handoff notes.
+Built and run locally on 2026-09-13. With the shared root manifest the image was ~4.2 GB; with `engine-api/` installing from its own `package.json`/`package-lock.json` (playwright, pixelmatch, pngjs, hono, @hono/node-server and the two type packages for the build stage) it measures 0.96 GB (`docker image inspect`). Verified inside the rebuilt container: `/healthz` 200 and a full `POST /check` against https://example.com finishing with 8 shots and 2 clips.
 
 ## Deploy
 
