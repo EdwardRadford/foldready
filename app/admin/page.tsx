@@ -1,9 +1,7 @@
-import path from 'node:path';
-import { promises as fs } from 'node:fs';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireAdmin } from '@/web/admin-auth';
-import { listJobs } from '@/web/jobs';
+import { listJobs, storageUsage } from '@/web/jobs';
 import type { Job } from '@/engine/types';
 
 export const dynamic = 'force-dynamic';
@@ -62,35 +60,6 @@ function formatBytes(bytes: number): string {
   return `${(mb / 1024).toFixed(2)} GB`;
 }
 
-/** Sum of file sizes under data/jobs, recursively. Best-effort: skips anything unreadable. */
-async function jobsDiskUsage(): Promise<number> {
-  const root = path.join(process.cwd(), 'data', 'jobs');
-  let total = 0;
-  async function walk(dir: string): Promise<void> {
-    let entries;
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(full);
-      } else {
-        try {
-          const stat = await fs.stat(full);
-          total += stat.size;
-        } catch {
-          // gone between readdir and stat; skip
-        }
-      }
-    }
-  }
-  await walk(root);
-  return total;
-}
-
 export default async function AdminPage({
   searchParams,
 }: {
@@ -101,7 +70,7 @@ export default async function AdminPage({
   const { filter: rawFilter } = await searchParams;
   const filter: Filter = CHIPS.some((c) => c.id === rawFilter) ? (rawFilter as Filter) : 'all';
 
-  const [jobs, diskBytes] = await Promise.all([listJobs(), jobsDiskUsage()]);
+  const [jobs, storage] = await Promise.all([listJobs(), storageUsage()]);
   const shown = filter === 'all' ? jobs : jobs.filter((j) => category(j) === filter);
 
   return (
@@ -116,8 +85,8 @@ export default async function AdminPage({
           </form>
         </div>
         <p className="admin-counts">
-          {jobs.length} job{jobs.length === 1 ? '' : 's'} · {formatBytes(diskBytes)} on disk in
-          data/jobs
+          {jobs.length} job{jobs.length === 1 ? '' : 's'} · {formatBytes(storage.bytes)}{' '}
+          {storage.label}
         </p>
 
         <div className="chip-row">

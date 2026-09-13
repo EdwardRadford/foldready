@@ -1,11 +1,14 @@
+!.env.local.example
 !public/**/*.png
 *.png
 *.tsbuildinfo
+.dev.vars
 .env*
 .next/
+.open-next/
+.wrangler/
 data/
 dist/
 next-env.d.ts
 node_modules/
 out/
-!.env.local.example

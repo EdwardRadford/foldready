@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "foldready",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "foldready",
+      // Placeholder: replace with the real id from `wrangler d1 create foldready` when Ed signs in.
+      // Local dev (`wrangler dev --local`) ignores it and uses miniflare's SQLite under .wrangler/.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RENDERS",
+      "bucket_name": "foldready-renders"
+    }
+  ],
+  "vars": {
+    // The render engine (Cloud Run). Overridden locally with --var or .dev.vars.
+    // ENGINE_SECRET and ADMIN_TOKEN are secrets, never vars.
+    "ENGINE_URL": "http://localhost:8791"
+  }
+}
