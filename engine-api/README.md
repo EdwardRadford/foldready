@@ -50,21 +50,44 @@ pre-installed; browsers cached under `/ms-playwright`). Two-stage build — a bu
 full dependencies compiles `engine-api/` and `src/engine/` to `dist/`; the runtime stage is a
 clean copy of the same base image with only production dependencies and the compiled `dist/`.
 
+Both stages install from `engine-api/package.json` + `engine-api/package-lock.json` — the
+engine's own minimal dependency set (`playwright` pinned to the exact version the root uses,
+`pixelmatch`, `pngjs`, `hono`, `@hono/node-server`, plus `typescript`/`@types/node` as dev
+dependencies for the build stage), not the whole repo's `next`/`react`/`wrangler`/etc. The
+lockfile was generated with `npm install --package-lock-only` run inside `engine-api/`; it is
+independent of the root `package-lock.json` and should be regenerated the same way (from inside
+`engine-api/`) if `engine-api/package.json`'s versions change.
+
 ```
 docker build -t foldready-engine -f engine-api/Dockerfile .
 docker run --rm -e ENGINE_SECRET=dev-secret -p 8792:8080 foldready-engine
 ```
 
-Built and run locally on 2026-09-13: image ~4.2 GB (dominated by the Playwright base image and
-`next`/`react`/`playwright` living in the same `dependencies` block as the engine's own
-`hono`/`@hono/node-server`), `/healthz` and a full `POST /check` against `https://example.com`
-both passed inside the container.
+Built and run locally on 2026-09-13: ~4.2 GB with the shared root `node_modules` (Next.js,
+Wrangler, etc. all installed alongside the engine's own deps), `/healthz` and a full `POST /check`
+against `https://example.com` both passed inside the container. After giving `engine-api/` its own
+`package.json`/`package-lock.json` (same day) the Dockerfile was updated to install from it
+instead — expect an image well under 2.5 GB (the base image alone is ~2 GB) since it now only adds
+`playwright`, `pixelmatch`, `pngjs`, `hono` and `@hono/node-server`. Not yet rebuilt and measured;
+Docker Desktop was down when this change was made — see STATE/handoff notes.
 
 ## Deploy
 
+`gcloud run deploy --source engine-api` does **not** work here: Cloud Run's source deploy uses the
+given directory as the build context, but `engine-api/Dockerfile` needs `src/engine/`, which sits
+outside `engine-api/`. Build with Cloud Build from the repo root instead, using
+`engine-api/cloudbuild.yaml` (context `.`, so `src/engine/` is visible), then deploy the pushed
+image:
+
 ```
+# one-time: create the Artifact Registry repo
+gcloud artifacts repositories create foldready --repository-format=docker --location=europe-west2
+
+# from the repo root
+gcloud builds submit --config engine-api/cloudbuild.yaml .
+
 gcloud run deploy foldready-engine \
-  --source engine-api \
+  --image europe-west2-docker.pkg.dev/<project>/foldready/foldready-engine:latest \
   --region europe-west2 \
   --memory 2Gi --cpu 1 --concurrency 1 --timeout 300 \
   --min-instances 0 --max-instances 3 \
@@ -72,21 +95,9 @@ gcloud run deploy foldready-engine \
   --allow-unauthenticated
 ```
 
-`--source engine-api` means Cloud Run's buildpack/Docker build needs the whole repo as build
-context, not just this directory — run the command from the repo root so `engine-api/Dockerfile`'s
-`COPY src/engine ...` and `COPY tsconfig.json ...` paths (relative to the repo root, the default
-Docker build context) resolve. If `gcloud run deploy --source` doesn't pick up the repo root as
-context automatically, build and push the image separately instead:
-
-```
-docker build -t <region>-docker.pkg.dev/<project>/<repo>/foldready-engine -f engine-api/Dockerfile .
-docker push <region>-docker.pkg.dev/<project>/<repo>/foldready-engine
-gcloud run deploy foldready-engine --image <region>-docker.pkg.dev/<project>/<repo>/foldready-engine \
-  --region europe-west2 --memory 2Gi --cpu 1 --concurrency 1 --timeout 300 \
-  --min-instances 0 --max-instances 3 \
-  --set-secrets ENGINE_SECRET=foldready-engine-secret:latest \
-  --allow-unauthenticated
-```
+`engine-api/cloudbuild.yaml` builds `-f engine-api/Dockerfile .` and pushes to
+`${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_TAG}` (all overridable via
+`--substitutions`, e.g. `--substitutions=_TAG=$(git rev-parse --short HEAD)`).
 
 Env/secret names:
 - `ENGINE_SECRET` — bearer token every request must present (`Authorization: Bearer <secret>`),

@@ -1,18 +1,19 @@
 # Fold Ready render engine — Cloud Run service.
 # Two-stage build: compile TypeScript to CommonJS in a full build image, run the
 # compiled output in a clean copy of the same Playwright base (browsers included).
+# Both stages install from engine-api/package.json + engine-api/package-lock.json —
+# the engine's own minimal dependency set, not the whole repo's (Next.js, Wrangler, etc).
 
 FROM mcr.microsoft.com/playwright:v1.63.0-noble AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY engine-api/package.json engine-api/package-lock.json ./
 RUN npm ci
 
-COPY tsconfig.json ./
 COPY src/engine ./src/engine
 COPY engine-api ./engine-api
 
-RUN npm run engine:build
+RUN npx tsc -p engine-api/tsconfig.json && node engine-api/write-dist-pkg.mjs
 
 
 FROM mcr.microsoft.com/playwright:v1.63.0-noble AS runtime
@@ -24,7 +25,7 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PORT=8080
 ENV NODE_ENV=production
 
-COPY package.json package-lock.json ./
+COPY engine-api/package.json engine-api/package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist

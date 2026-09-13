@@ -1,0 +1,26 @@
+# Build the engine image with the repo root as Docker context (engine-api/Dockerfile needs
+# src/engine, which sits outside engine-api/), then push it to Artifact Registry.
+# Run from the repo root: gcloud builds submit --config engine-api/cloudbuild.yaml .
+substitutions:
+  _REGION: europe-west2
+  _REPO: foldready
+  _IMAGE_NAME: foldready-engine
+  _TAG: latest
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - engine-api/Dockerfile
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_TAG}'
+      - .
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_TAG}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1200s

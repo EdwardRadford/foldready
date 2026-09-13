@@ -22,6 +22,9 @@ import {
 
 const SHOT_CACHE = 'public, max-age=86400, immutable';
 const LIST_LIMIT = 200;
+const RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // permalinks live a month; then the row and its renders go
+const SWEEP_EVERY_MS = 60 * 60 * 1000;
+const SWEEP_BATCH = 100;
 const STOPPED = 'That check stopped before it finished. Run it again.';
 
 interface JobRow {
@@ -98,9 +101,72 @@ async function guardUrl(u: URL): Promise<void> {
   }
 }
 
-export function createD1Store(env: CloudflareEnv): JobStore {
+// Per isolate, so a busy Worker sweeps roughly hourly however many isolates are alive. Two
+// isolates sweeping at once is fine: deleting a row that has gone, or an object that has gone,
+// is not an error in either D1 or R2.
+let lastSweep = 0;
+
+export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobStore {
   const db = env.DB;
   const renders = env.RENDERS;
+
+  /** Delete every object under jobs/<id>/. Safe to call for a job whose files are already gone. */
+  async function removeRenders(id: string): Promise<void> {
+    const prefix = `jobs/${id}/`;
+    let cursor: string | undefined;
+    do {
+      const listed = await renders.list({ prefix, cursor });
+      if (listed.objects.length > 0) {
+        await renders.delete(listed.objects.map((o) => o.key));
+      }
+      cursor = listed.truncated ? listed.cursor : undefined;
+    } while (cursor);
+  }
+
+  /**
+   * Drop finished jobs past the retention window, and rate-limit hits past the window. Runs at
+   * most hourly per isolate and never blocks a check: createJob hands it to waitUntil.
+   */
+  async function sweep(): Promise<void> {
+    const now = Date.now();
+    if (now - lastSweep < SWEEP_EVERY_MS) return;
+    lastSweep = now;
+
+    const cutoff = new Date(now - RETENTION_MS).toISOString();
+    const { results } = await db
+      .prepare(
+        `SELECT id FROM jobs
+          WHERE state IN ('done', 'error') AND coalesce(checked_at, created_at) < ?
+          LIMIT ?`,
+      )
+      .bind(cutoff, SWEEP_BATCH)
+      .all<{ id: string }>();
+
+    for (const row of results ?? []) {
+      try {
+        await removeRenders(row.id);
+        await db.prepare('DELETE FROM jobs WHERE id = ?').bind(row.id).run();
+      } catch {
+        // Another isolate got there first, or R2 hiccupped: the next sweep picks it up again.
+      }
+    }
+
+    try {
+      await db.prepare('DELETE FROM rate_hits WHERE at < ?').bind(now - RATE_WINDOW_MS).run();
+    } catch {
+      // Housekeeping only; rate() clears old hits on every check anyway.
+    }
+  }
+
+  /** Run the sweep in the background, keeping the isolate alive for it where we can. */
+  function startSweep(): void {
+    const running = sweep().catch(() => {});
+    try {
+      ctx?.waitUntil(running);
+    } catch {
+      // No live execution context (or not this request's): the sweep still runs, unsupervised.
+    }
+  }
 
   function engineBase(): string {
     const base = env.ENGINE_URL ?? '';
@@ -216,6 +282,8 @@ export function createD1Store(env: CloudflareEnv): JobStore {
     kind: 'd1',
 
     async createJob(input: string, ip = 'unknown', fresh = false): Promise<Job> {
+      startSweep();
+
       const u = normaliseUrl(input);
       await guardUrl(u);
       const url = u.toString();
@@ -310,15 +378,7 @@ export function createD1Store(env: CloudflareEnv): JobStore {
     async deleteJob(id: string): Promise<void> {
       if (!ID_RE.test(id)) return;
       await db.prepare('DELETE FROM jobs WHERE id = ?').bind(id).run();
-      const prefix = `jobs/${id}/`;
-      let cursor: string | undefined;
-      do {
-        const listed = await renders.list({ prefix, cursor });
-        if (listed.objects.length > 0) {
-          await renders.delete(listed.objects.map((o) => o.key));
-        }
-        cursor = listed.truncated ? listed.cursor : undefined;
-      } while (cursor);
+      await removeRenders(id);
     },
 
     queuePosition(): number {

@@ -104,21 +104,21 @@ export function onWorkers(): boolean {
   return typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers';
 }
 
-let cached: JobStore | undefined;
+let cachedFileStore: JobStore | undefined;
 
 export async function getStore(): Promise<JobStore> {
-  if (cached) return cached;
   if (onWorkers()) {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
-    const { env } = await getCloudflareContext({ async: true });
+    const { env, ctx } = await getCloudflareContext({ async: true });
     if (env.DB && env.RENDERS) {
+      // Built per request rather than cached: it is only a handful of closures, and holding on
+      // to one request's ExecutionContext and calling waitUntil on it later is not allowed.
       const { createD1Store } = await import('./store-d1');
-      const d1 = createD1Store(env);
-      cached = d1;
-      return d1;
+      return createD1Store(env, ctx);
     }
   }
+  if (cachedFileStore) return cachedFileStore;
   const { fileStore } = await import('./store-file');
-  cached = fileStore;
+  cachedFileStore = fileStore;
   return fileStore;
 }

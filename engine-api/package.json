@@ -1,0 +1,19 @@
+{
+  "name": "foldready-engine",
+  "version": "1.0.0",
+  "description": "Fold Ready render engine, packaged as an HTTP service for Cloud Run.",
+  "private": true,
+  "dependencies": {
+    "@hono/node-server": "2.1.1",
+    "hono": "4.13.7",
+    "pixelmatch": "7.2.0",
+    "playwright": "1.63.0",
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "7.0.2"
+  }
+}
