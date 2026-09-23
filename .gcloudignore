@@ -1,0 +1,21 @@
+# What NOT to upload to Cloud Build. The image only needs src/engine and engine-api
+# (see engine-api/Dockerfile); everything else here is the web app, test output or local state.
+.git/
+.gitignore
+node_modules/
+.next/
+.open-next/
+.wrangler/
+data/
+out/
+dist/
+documents/
+fixtures/
+test/
+app/
+migrations/
+src/web/
+*.log
+.env*
+!.env.local.example
+*.tsbuildinfo
