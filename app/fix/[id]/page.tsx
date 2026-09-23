@@ -6,7 +6,7 @@ import Offer from '../../_components/Offer';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Get it Fold Ready — £149',
+  title: 'Get it Fold Ready',
   robots: { index: false, follow: false },
 };
 
@@ -16,6 +16,7 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
   const shown = job ? job.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
 
   const subject = `Fold Ready fix: ${shown || id}`;
+  const body = `Hello,\n\nMy site ${shown || ''} did not come out well on the iPhone Duo check:\nhttps://foldready.com/r/${id}\n\nCan you fix it?\n`;
 
   return (
     <div className="wrap">
@@ -27,10 +28,16 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
       <Offer hideHeading />
 
       <section className="calm">
-        <p>Checkout is coming; email contact@edwardradford.co.uk to go first.</p>
+        <p>
+          Send me the results link and I will tell you what it needs, what it would cost and how
+          long it takes. No obligation either way.
+        </p>
         <div className="btn-row">
-          <a className="btn" href={`mailto:contact@edwardradford.co.uk?subject=${encodeURIComponent(subject)}`}>
-            Email me to go first
+          <a
+            className="btn"
+            href={`mailto:contact@edwardradford.co.uk?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+          >
+            Email me about this site
           </a>
           <Link className="btn btn-quiet" href={`/r/${id}`}>
             Back to the results

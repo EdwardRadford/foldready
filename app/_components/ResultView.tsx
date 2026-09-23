@@ -142,7 +142,7 @@ export default function ResultView({ result }: { result: Result }) {
           <h2>This needs more than a patch.</h2>
           <p>
             What is going wrong here sits in the structure of the site rather than in a few rules of
-            CSS, so a flat-price patch would not fix it honestly. Send me the address and I will
+            CSS, so a patch would not fix it honestly. Send me the address and I will
             tell you what it would actually take, whether or not that turns into work for me.
           </p>
           <div className="btn-row">

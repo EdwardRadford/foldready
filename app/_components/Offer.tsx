@@ -1,12 +1,14 @@
 import Link from 'next/link';
 
-/** The one offer. Price and guarantee are locked copy: do not reword. */
+/**
+ * What a fix covers. No price and no payment: Ed's decision on 23 Sep 2026 is that Fold Ready
+ * ships as "get in touch and I will fix it", so every path here ends in an email, not a checkout.
+ */
 export default function Offer({ jobId, hideHeading }: { jobId?: string; hideHeading?: boolean }) {
   return (
     <section className="offer">
-      {hideHeading ? null : <h2>Get it Fold Ready</h2>}
-      <p className="price">£149, one-off. No subscription, no call, no quote.</p>
-      <p className="guarantee">See it fixed at both Duo screen sizes or your money back.</p>
+      {hideHeading ? null : <h2>Want it fixed?</h2>}
+      <p className="price">I fix these for a living. Send me the link and I will sort it.</p>
       <ul>
         <li>Breakpoints corrected so the folded width gets the layout it should have.</li>
         <li>Heroes and panels built on 100vh resized so nothing is cut off on the short screens.</li>
@@ -20,7 +22,7 @@ export default function Offer({ jobId, hideHeading }: { jobId?: string; hideHead
       {jobId ? (
         <div className="btn-row">
           <Link className="btn" href={`/fix/${jobId}`}>
-            Fix it for £149
+            Get in touch about a fix
           </Link>
         </div>
       ) : null}
