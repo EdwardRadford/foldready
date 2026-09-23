@@ -13,3 +13,9 @@ dist/
 next-env.d.ts
 node_modules/
 out/
+STATE.md
+CLAUDE.md
+documents/HANDOFF.md
+documents/CLEANUP-*.md
+documents/HOSTING-*.md
+documents/design/
