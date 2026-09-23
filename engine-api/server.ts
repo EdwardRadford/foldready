@@ -5,7 +5,7 @@ import { Readable } from 'node:stream';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { serve } from '@hono/node-server';
 import { runCheck, closeBrowser, SHOT_FILES, VIDEO_FILES, ENGINE_VERSION } from '../src/engine/index';
 import type { Job } from '../src/engine/types';
@@ -109,9 +109,9 @@ app.use('*', async (c, next) => {
   console.log(`${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`);
 });
 
-// Bearer auth on everything except /healthz.
+// Bearer auth on everything except the health routes.
 app.use('*', async (c, next) => {
-  if (c.req.path === '/healthz') return next();
+  if (c.req.path === '/health' || c.req.path === '/healthz') return next();
   const auth = c.req.header('authorization');
   if (!ENGINE_SECRET || auth !== `Bearer ${ENGINE_SECRET}`) {
     return c.json({ error: 'unauthorised' }, 401);
@@ -119,9 +119,13 @@ app.use('*', async (c, next) => {
   return next();
 });
 
-app.get('/healthz', (c) => {
-  return c.json({ ok: true, engineVersion: ENGINE_VERSION, queued: countByState('queued'), running: countByState('running') });
-});
+// Cloud Run's front end answers /healthz itself and never passes it to the container, so /health
+// is the route that works in production. /healthz stays for local runs and other hosts.
+const health = (c: Context) =>
+  c.json({ ok: true, engineVersion: ENGINE_VERSION, queued: countByState('queued'), running: countByState('running') });
+
+app.get('/health', health);
+app.get('/healthz', health);
 
 app.post('/check', async (c) => {
   if (shuttingDown) return c.json({ error: 'shutting down' }, 503);

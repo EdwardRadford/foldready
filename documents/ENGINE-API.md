@@ -12,7 +12,7 @@ Routes:
 
 | Method | Path | Body / params | Response |
 |---|---|---|---|
-| GET | `/healthz` | – | 200 `{ ok: true, engineVersion, queued, running }` (no auth) |
+| GET | `/health` | – | 200 `{ ok: true, engineVersion, queued, running }` (no auth). Also served at `/healthz`, but **Cloud Run's front end answers `/healthz` itself and never passes it to the container**, so only `/health` works in production. |
 | POST | `/check` | `{ url: string, fresh?: boolean }` | 202 `{ id }`; 400 `{ error }` for a bad or private address (UrlError message); 429 `{ error }` when more than 20 jobs are queued |
 | GET | `/jobs/:id` | – | 200 Job (from `src/engine/types.ts`: state queued/running/done/error, progress, result, error); 404 |
 | GET | `/jobs/:id/files/:name` | name ∈ SHOT_FILES ∪ VIDEO_FILES | 200 bytes with the right content type and `Accept-Ranges`; 404 |

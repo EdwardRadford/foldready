@@ -1,5 +1,4 @@
 import { promises as dns } from 'node:dns';
-import net from 'node:net';
 
 export class UrlError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -29,6 +28,18 @@ export function normaliseUrl(input: string): URL {
   return u;
 }
 
+/**
+ * Which kind of IP literal this string is, by shape alone. Deliberately not `node:net`: this file
+ * runs in Node (the engine) and on workerd (the Worker), and node's net helpers are not dependable
+ * in the second, which silently turned public addresses into "private" refusals.
+ */
+function ipVersion(s: string): 4 | 6 | 0 {
+  if (s.includes(':')) return /^[0-9a-f:.]+$/i.test(s) ? 6 : 0;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  if (!m) return 0;
+  return m.slice(1).every((n) => Number(n) <= 255) ? 4 : 0;
+}
+
 function isPrivateV4(ip: string): boolean {
   const p = ip.split('.').map(Number);
   if (p.length !== 4 || p.some((n) => Number.isNaN(n))) return true;
@@ -54,23 +65,43 @@ function isPrivateV6(ip: string): boolean {
   return false;
 }
 
+/**
+ * True when this address points somewhere internal. A string that is not an IP at all returns
+ * false: callers pass resolver answers, which are always addresses, and treating an unrecognised
+ * string as private refused real sites rather than protecting anything.
+ */
 export function isPrivateAddress(ip: string): boolean {
-  if (net.isIPv4(ip)) return isPrivateV4(ip);
-  if (net.isIPv6(ip)) return isPrivateV6(ip);
-  return true;
+  const v = ipVersion(ip);
+  if (v === 4) return isPrivateV4(ip);
+  if (v === 6) return isPrivateV6(ip);
+  return false;
 }
 
-/** Resolve the host and refuse anything that points at private/internal ranges (SSRF guard). */
-export async function assertPublicHost(u: URL, allowLocal = false): Promise<void> {
-  if (allowLocal) return;
+/**
+ * Everything the SSRF guard can decide without a resolver: the scheme, the shape of the host and
+ * any IP typed straight into the box. Safe in any runtime.
+ */
+export function assertPublicHostSyntactic(u: URL): void {
   const host = u.hostname.replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
     throw new UrlError('Local and internal addresses cannot be checked.', 'private');
   }
-  if (net.isIP(host)) {
-    if (isPrivateAddress(host)) throw new UrlError('Private network addresses cannot be checked.', 'private');
-    return;
+  if (ipVersion(host) !== 0 && isPrivateAddress(host)) {
+    throw new UrlError('Private network addresses cannot be checked.', 'private');
   }
+}
+
+/**
+ * The full guard: the checks above, then a real DNS lookup. Node only — on workerd the lookup is
+ * not dependable, so the Worker runs the syntactic half plus DNS-over-HTTPS and leaves the
+ * authoritative check to the engine, which calls this before it opens a browser.
+ */
+export async function assertPublicHost(u: URL, allowLocal = false): Promise<void> {
+  if (allowLocal) return;
+  assertPublicHostSyntactic(u);
+  const host = u.hostname.replace(/^\[|\]$/g, '');
+  if (ipVersion(host) !== 0) return; // an IP literal, already judged above
+
   let addrs: { address: string }[];
   try {
     addrs = await dns.lookup(host, { all: true });

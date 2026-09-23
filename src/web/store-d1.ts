@@ -4,7 +4,7 @@
 // Ids here are the front end's own (the engine's id is kept in engine_job_id), so a permalink
 // never depends on a container that is swept an hour after the check.
 import type { Job, Result } from '@/engine/types';
-import { UrlError, normaliseUrl, assertPublicHost, isPrivateAddress } from '@/engine/url';
+import { UrlError, normaliseUrl, assertPublicHostSyntactic, isPrivateAddress } from '@/engine/url';
 import { ENGINE_VERSION } from '@/engine/device';
 import {
   ID_RE,
@@ -65,20 +65,17 @@ function rowToJob(row: JobRow): Job {
 }
 
 /**
- * The SSRF guard from the engine, with a Workers-safe fallback. `node:dns` is not implemented on
- * workerd, so a lookup there fails the same way a missing domain does; when that happens we ask
- * Cloudflare's DNS-over-HTTPS resolver instead. If even that cannot be reached the address goes
- * through: the engine runs the same guard with a real resolver before it opens a browser.
+ * The SSRF guard, done the way workerd can be trusted to do it: the syntactic checks, then
+ * Cloudflare's DNS-over-HTTPS resolver. If the resolver cannot be reached the address goes
+ * through, because the engine runs the full guard with a real resolver before it opens a browser.
  */
 async function guardUrl(u: URL): Promise<void> {
-  try {
-    await assertPublicHost(u);
-    return;
-  } catch (err) {
-    if (!(err instanceof UrlError) || err.code !== 'dns') throw err;
-  }
+  // Syntactic checks only here. node:dns is not dependable on workerd, and trusting it refused
+  // real sites (www.gov.uk, www.bbc.co.uk) as "private" on 23 Sep 2026.
+  assertPublicHostSyntactic(u);
 
   const host = u.hostname.replace(/^\[|\]$/g, '');
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return; // an IP literal, already judged
   for (const type of ['A', 'AAAA']) {
     let data: { Status?: number; Answer?: { type: number; data: string }[] };
     try {
