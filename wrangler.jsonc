@@ -14,6 +14,9 @@
   // Ed bought foldready.co.uk through Cloudflare Registrar on 23 Sep 2026, so the zone is already
   // in this account. foldready.com is someone else's: never point anything at it.
   "routes": [{ "pattern": "foldready.co.uk", "custom_domain": true }],
+  // Adding a route turns the workers.dev address off unless this is explicit. Keep it: it is the
+  // fallback while the custom domain's certificate is issued, and a stable address for testing.
+  "workers_dev": true,
   "d1_databases": [
     {
       "binding": "DB",
