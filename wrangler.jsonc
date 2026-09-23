@@ -11,6 +11,9 @@
     "binding": "ASSETS"
   },
   "observability": { "enabled": true },
+  // Ed bought foldready.co.uk through Cloudflare Registrar on 23 Sep 2026, so the zone is already
+  // in this account. foldready.com is someone else's: never point anything at it.
+  "routes": [{ "pattern": "foldready.co.uk", "custom_domain": true }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -30,6 +33,6 @@
   "vars": {
     // The render engine (Cloud Run). Overridden locally with --var or .dev.vars.
     // ENGINE_SECRET and ADMIN_TOKEN are secrets, never vars.
-    "ENGINE_URL": "http://localhost:8791"
+    "ENGINE_URL": "https://foldready-engine-814781854157.europe-west2.run.app"
   }
 }
