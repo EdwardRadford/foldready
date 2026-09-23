@@ -8,6 +8,7 @@
 .open-next/
 .wrangler/
 data/
+dev.log
 dist/
 next-env.d.ts
 node_modules/
