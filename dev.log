@@ -1,0 +1,53 @@
+▲ Next.js 16.3.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.26.32.1:3000
+✓ Ready in 874ms
+✓ Running next.config.ts took 8.8s
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+ GET / 200 in 604ms (next.js: 414ms, application-code: 190ms)
+ GET /r/a8ek4zfcxe 200 in 489ms (next.js: 398ms, application-code: 91ms)
+ GET /r/bc9jrhwxwa 200 in 47ms (next.js: 10ms, application-code: 36ms)
+ GET /r/eam4w8ae4h 200 in 48ms (next.js: 2ms, application-code: 46ms)
+ GET /r/gw3z1zyr9e 200 in 50ms (next.js: 2ms, application-code: 47ms)
+ GET /r/l6rohmife8 200 in 47ms (next.js: 8ms, application-code: 39ms)
+ GET /r/mi4s5mtya4 200 in 42ms (next.js: 2ms, application-code: 40ms)
+ GET /r/p2f16drc7o 200 in 42ms (next.js: 2.0ms, application-code: 40ms)
+ GET / 200 in 43ms (next.js: 9ms, application-code: 34ms)
+ POST /api/check 200 in 221ms (next.js: 134ms, application-code: 87ms)
+ GET /r/4x9dgkh1ri 200 in 75ms (next.js: 54ms, application-code: 20ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 656ms (next.js: 645ms, application-code: 11ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 655ms (next.js: 644ms, application-code: 11ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 12ms (next.js: 8ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 11ms (next.js: 7ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 70ms (next.js: 66ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 69ms (next.js: 64ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 12ms (next.js: 8ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 12ms (next.js: 8ms, application-code: 5ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 11ms (next.js: 7ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 14ms (next.js: 9ms, application-code: 5ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 13ms (next.js: 9ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 10ms (next.js: 7ms, application-code: 3ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 20ms (next.js: 16ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 23ms (next.js: 17ms, application-code: 6ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 14ms (next.js: 10ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 14ms (next.js: 9ms, application-code: 5ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 13ms (next.js: 9ms, application-code: 4ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 16ms (next.js: 10ms, application-code: 6ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 21ms (next.js: 17ms, application-code: 5ms)
+ GET /api/jobs/4x9dgkh1ri 200 in 9ms (next.js: 7ms, application-code: 3ms)
+ GET /api/shot/4x9dgkh1ri/folded.png 200 in 577ms (next.js: 555ms, application-code: 22ms)
+ GET /api/shot/4x9dgkh1ri/fold-back.png 200 in 579ms (next.js: 553ms, application-code: 26ms)
+ GET /api/shot/4x9dgkh1ri/other-iphone.png 200 in 553ms (next.js: 523ms, application-code: 30ms)
+ GET /api/shot/4x9dgkh1ri/fold-transition.png 200 in 588ms (next.js: 554ms, application-code: 34ms)
+ GET /api/shot/4x9dgkh1ri/unfolded.png 200 in 592ms (next.js: 554ms, application-code: 38ms)
+ GET /api/shot/4x9dgkh1ri/split.png 200 in 564ms (next.js: 524ms, application-code: 40ms)
+ GET /api/shot/4x9dgkh1ri/other-ipad.png 200 in 20ms (next.js: 10ms, application-code: 10ms)
+ GET /api/shot/4x9dgkh1ri/folded.webm 206 in 14ms (next.js: 6ms, application-code: 9ms)
+ GET /api/shot/4x9dgkh1ri/other-laptop.png 200 in 21ms (next.js: 2ms, application-code: 19ms)
+ GET /fix/4x9dgkh1ri 200 in 589ms (next.js: 560ms, application-code: 29ms)

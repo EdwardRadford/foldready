@@ -27,9 +27,9 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
       <Offer hideHeading />
 
       <section className="calm">
-        <p>Checkout is coming; email eddie@yowzer.co.uk to go first.</p>
+        <p>Checkout is coming; email contact@edwardradford.co.uk to go first.</p>
         <div className="btn-row">
-          <a className="btn" href={`mailto:eddie@yowzer.co.uk?subject=${encodeURIComponent(subject)}`}>
+          <a className="btn" href={`mailto:contact@edwardradford.co.uk?subject=${encodeURIComponent(subject)}`}>
             Email me to go first
           </a>
           <Link className="btn btn-quiet" href={`/r/${id}`}>

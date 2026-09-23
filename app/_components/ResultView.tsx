@@ -124,7 +124,7 @@ export default function ResultView({ result }: { result: Result }) {
           <div className="btn-row">
             <a
               className="btn"
-              href={`mailto:eddie@yowzer.co.uk?subject=${encodeURIComponent(`Fold Ready: ${url}`)}`}
+              href={`mailto:contact@edwardradford.co.uk?subject=${encodeURIComponent(`Fold Ready: ${url}`)}`}
             >
               Email Ed
             </a>
@@ -148,7 +148,7 @@ export default function ResultView({ result }: { result: Result }) {
           <div className="btn-row">
             <a
               className="btn"
-              href={`mailto:eddie@yowzer.co.uk?subject=${encodeURIComponent(`Fold Ready: ${shown}`)}`}
+              href={`mailto:contact@edwardradford.co.uk?subject=${encodeURIComponent(`Fold Ready: ${shown}`)}`}
             >
               Email me about this site
             </a>

@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               sizes in a WebKit browser.
             </p>
             <p>
-              Questions: <a href="mailto:eddie@yowzer.co.uk">eddie@yowzer.co.uk</a>
+              Questions: <a href="mailto:contact@edwardradford.co.uk">contact@edwardradford.co.uk</a>
             </p>
           </div>
         </footer>
