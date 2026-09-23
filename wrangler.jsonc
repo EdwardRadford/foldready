@@ -1,6 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "foldready",
+  // Ed's own Cloudflare account, pinned so nothing lands on a Yowzer account.
+  "account_id": "YOUR_CLOUDFLARE_ACCOUNT_ID",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-11",
   "compatibility_flags": ["nodejs_compat"],
@@ -13,9 +15,9 @@
     {
       "binding": "DB",
       "database_name": "foldready",
-      // Placeholder: replace with the real id from `wrangler d1 create foldready` when Ed signs in.
+      // Created 23 Sep 2026 in the Edward Radford account, region WEUR.
       // Local dev (`wrangler dev --local`) ignores it and uses miniflare's SQLite under .wrangler/.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "YOUR_D1_DATABASE_ID",
       "migrations_dir": "migrations"
     }
   ],
