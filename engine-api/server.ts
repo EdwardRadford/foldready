@@ -4,7 +4,7 @@ import { promises as fs, createReadStream } from 'node:fs';
 import { Readable } from 'node:stream';
 import path from 'node:path';
 import os from 'node:os';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import { serve } from '@hono/node-server';
 import { runCheck, closeBrowser, SHOT_FILES, VIDEO_FILES, ENGINE_VERSION } from '../src/engine/index';
@@ -14,6 +14,17 @@ import { normaliseUrl, assertPublicHost, UrlError } from '../src/engine/url';
 const ENGINE_SECRET = process.env.ENGINE_SECRET;
 if (!ENGINE_SECRET) {
   console.error('WARNING: ENGINE_SECRET is not set; every authenticated request will 401.');
+}
+
+/**
+ * Constant-time string comparison. Both sides are hashed first, so the compared buffers are always
+ * 32 bytes and the length of the secret never leaks either. Same approach as src/web/admin-auth.ts;
+ * duplicated rather than imported because that module pulls in Next.js and this service does not.
+ */
+function timingSafeStringsEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a, 'utf8').digest();
+  const hb = createHash('sha256').update(b, 'utf8').digest();
+  return timingSafeEqual(ha, hb);
 }
 
 const PORT = Number(process.env.PORT) || 8791;
@@ -113,7 +124,7 @@ app.use('*', async (c, next) => {
 app.use('*', async (c, next) => {
   if (c.req.path === '/health' || c.req.path === '/healthz') return next();
   const auth = c.req.header('authorization');
-  if (!ENGINE_SECRET || auth !== `Bearer ${ENGINE_SECRET}`) {
+  if (!ENGINE_SECRET || !auth || !timingSafeStringsEqual(auth, `Bearer ${ENGINE_SECRET}`)) {
     return c.json({ error: 'unauthorised' }, 401);
   }
   return next();
