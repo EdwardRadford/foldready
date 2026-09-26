@@ -1,5 +1,7 @@
 # Fold Ready
 
+[![CI](https://github.com/EdwardRadford/foldready/actions/workflows/ci.yml/badge.svg)](https://github.com/EdwardRadford/foldready/actions/workflows/ci.yml)
+
 Renders a website at the three screen sizes of a foldable phone and reports what breaks.
 
 Live at **[foldready.co.uk](https://foldready.co.uk)**. Paste a URL, get back screenshots and a
