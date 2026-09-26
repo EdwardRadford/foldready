@@ -5,6 +5,10 @@ Renders a website at the three screen sizes of a foldable phone and reports what
 Live at **[foldready.co.uk](https://foldready.co.uk)**. Paste a URL, get back screenshots and a
 plain-English list of what fails when the device folds and unfolds.
 
+Start with `src/engine/render.ts` — it loads the page folded, resizes to unfolded *without a
+reload*, and resizes back, capturing all three plus any script errors thrown during the resize.
+`src/engine/checks/index.ts` turns those captures into findings.
+
 Foldables are the first mainstream device where one browser changes viewport mid-session. A layout
 can pass every normal responsive test and still break the moment the phone opens, because the fold
 is a *resize without a reload*: no navigation, no fresh render, just a different box. So the check

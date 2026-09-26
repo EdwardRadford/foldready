@@ -1,0 +1,11 @@
+.next/
+.open-next/
+.wrangler/
+dist/
+node_modules/
+out/
+package-lock.json
+next-env.d.ts
+worker-configuration.d.ts
+cloudflare-env.d.ts
+migrations/

@@ -28,7 +28,7 @@ Container:
 - Base image `mcr.microsoft.com/playwright:v1.63.0-noble` (matches the pinned Playwright; WebKit, ffmpeg and system libs included).
 - Listens on `$PORT` (Cloud Run sets it, default 8080).
 - Cloud Run settings: 2 GiB memory, 1 vCPU, concurrency 1, request timeout 300 s, min instances 0, max instances 3, env `ENGINE_SECRET`.
-- Deploy command (once Ed has signed in): `gcloud run deploy foldready-engine --source engine-api --region europe-west2 --memory 2Gi --cpu 1 --concurrency 1 --timeout 300 --min-instances 0 --max-instances 3 --set-secrets ENGINE_SECRET=foldready-engine-secret:latest --no-allow-unauthenticated` is NOT used; the service is public with the bearer secret, so `--allow-unauthenticated`.
+- Deployed with `--allow-unauthenticated`, not `--no-allow-unauthenticated`: the service is reachable publicly and the bearer secret is what authorises a request. `engine-api/README.md` has the full deploy commands.
 
 ## Workers front end
 

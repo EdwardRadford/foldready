@@ -21,7 +21,8 @@
     "mock:engine": "node fixtures/mock-engine.mjs",
     "engine:dev": "tsx engine-api/server.ts",
     "engine:build": "tsc -p engine-api/tsconfig.json && node engine-api/write-dist-pkg.mjs",
-    "engine:start": "node dist/engine-api/server.js"
+    "engine:start": "node dist/engine-api/server.js",
+    "format": "prettier --write ."
   },
   "keywords": [],
   "author": "",
@@ -35,6 +36,7 @@
     "@types/pngjs": "^6.0.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "prettier": "^3.9.9",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0",

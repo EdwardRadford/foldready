@@ -13,6 +13,7 @@ dist/
 next-env.d.ts
 node_modules/
 out/
+.claude/
 STATE.md
 CLAUDE.md
 documents/HANDOFF.md
