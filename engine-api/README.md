@@ -83,8 +83,8 @@ gcloud builds submit --config engine-api/cloudbuild.yaml .
 gcloud run deploy foldready-engine \
   --image europe-west2-docker.pkg.dev/<project>/foldready/foldready-engine:latest \
   --region europe-west2 \
-  --memory 2Gi --cpu 1 --concurrency 1 --timeout 300 \
-  --min-instances 0 --max-instances 3 \
+  --memory 4Gi --cpu 2 --no-cpu-throttling --concurrency 10 --timeout 300 \
+  --min-instances 0 --max-instances 1 \
   --set-secrets ENGINE_SECRET=foldready-engine-secret:latest \
   --allow-unauthenticated
 ```
@@ -105,6 +105,12 @@ as `ENGINE_SECRET` — see `documents/ENGINE-API.md`'s "Workers front end" secti
 
 - In-process queue, concurrency 1. One Playwright browser per process, reused across jobs
   (`closeBrowser()` only runs on shutdown).
+- **Max instances must stay at 1.** Jobs live in this process's memory and disk, so a second
+  instance answers `404` for every job it did not start, and the front end reads a `404` as "the
+  check stopped". With max 3, a heavy render pushed CPU up, Cloud Run started a second instance,
+  routed polls to it, and real sites never finished (found 2 Oct 2026). The browser work is
+  serialised by the in-process queue, not by request concurrency, so `--concurrency 10` only lets
+  polls and file fetches overlap a running check.
 - Jobs and their files live under `os.tmpdir()/foldready-jobs/<id>/` and are swept 60 minutes
   after the job finishes (or immediately on `DELETE /jobs/:id`). The container is ephemeral — the
   front end must copy files into R2 before that window closes.

@@ -27,7 +27,7 @@ Behaviour:
 Container:
 - Base image `mcr.microsoft.com/playwright:v1.63.0-noble` (matches the pinned Playwright; WebKit, ffmpeg and system libs included).
 - Listens on `$PORT` (Cloud Run sets it, default 8080).
-- Cloud Run settings: 2 GiB memory, 1 vCPU, concurrency 1, request timeout 300 s, min instances 0, max instances 3, env `ENGINE_SECRET`.
+- Cloud Run settings: 4 GiB memory, 2 vCPU, CPU always allocated, concurrency 10, request timeout 300 s, min instances 0, **max instances 1** (jobs are in-process state; a second instance 404s every job it did not start, see engine-api/README.md), env `ENGINE_SECRET`.
 - Deployed with `--allow-unauthenticated`, not `--no-allow-unauthenticated`: the service is reachable publicly and the bearer secret is what authorises a request. `engine-api/README.md` has the full deploy commands.
 
 ## Workers front end
