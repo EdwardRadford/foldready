@@ -20,3 +20,4 @@ documents/HANDOFF.md
 documents/CLEANUP-*.md
 documents/HOSTING-*.md
 documents/design/
+wrangler.deploy.jsonc
