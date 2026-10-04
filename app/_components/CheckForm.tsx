@@ -1,17 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function CheckForm() {
+// The form works before its script has loaded: it is a real form posting to /api/check, which
+// redirects to the results page. Once the script is running, submit is taken over with fetch.
+// Without this, an address typed and sent in the first moments after the page arrived went
+// nowhere: the button was still disabled from the server render, and hydration then emptied the
+// box (found 4 Oct 2026, three times out of three).
+export default function CheckForm({ initialUrl = '', initialError = '' }: { initialUrl?: string; initialError?: string }) {
   const router = useRouter();
-  const [url, setUrl] = useState('');
-  const [error, setError] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  const [url, setUrl] = useState(initialUrl);
+  const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
+
+  // Keep anything typed before hydration rather than resetting the box to the server's value.
+  useEffect(() => {
+    const typed = input.current?.value ?? '';
+    if (typed !== '') setUrl(typed);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (url.trim() === '') {
+      setError('Type a web address first.');
+      input.current?.focus();
+      return;
+    }
     setError('');
     setBusy(true);
     try {
@@ -34,12 +51,13 @@ export default function CheckForm() {
   }
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form action="/api/check" method="post" onSubmit={submit} noValidate>
       <div className="field">
         <label htmlFor="url" className="sr-only" style={{ position: 'absolute', left: '-9999px' }}>
           Web address
         </label>
         <input
+          ref={input}
           id="url"
           name="url"
           type="text"
@@ -49,9 +67,9 @@ export default function CheckForm() {
           placeholder="yourbusiness.co.uk"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          disabled={busy}
+          readOnly={busy}
         />
-        <button className="btn" type="submit" disabled={busy || url.trim() === ''}>
+        <button className="btn" type="submit" disabled={busy}>
           {busy ? 'Starting' : 'Check my site'}
         </button>
       </div>

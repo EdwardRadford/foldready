@@ -13,23 +13,30 @@ export default function Poller({ initial }: { initial: Job }) {
   useEffect(() => {
     if (job.state === 'done' || job.state === 'error') return;
     let stopped = false;
+    let timer: number | undefined;
 
+    // One request at a time: the next poll is scheduled only after the last one answered. With a
+    // fixed interval, the poll that collects a finished check (several seconds of copying renders)
+    // overlapped the next ones, and they raced each other in the job store.
     const tick = async () => {
+      let next: Job | undefined;
       try {
         const res = await fetch(`/api/jobs/${initial.id}`, { cache: 'no-store' });
-        if (!res.ok) return;
-        const next = (await res.json()) as Job;
-        if (!stopped) setJob(next);
+        if (res.ok) next = (await res.json()) as Job;
       } catch {
         // keep polling; a dropped request is not a failed check
       }
+      if (stopped) return;
+      if (next) setJob(next);
+      if (!next || (next.state !== 'done' && next.state !== 'error')) {
+        timer = window.setTimeout(tick, POLL_MS);
+      }
     };
 
-    const timer = window.setInterval(tick, POLL_MS);
     void tick();
     return () => {
       stopped = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
   }, [initial.id, job.state]);
 

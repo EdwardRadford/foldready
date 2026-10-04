@@ -10,6 +10,7 @@ export {
   isShotFile,
   shotContentType,
   getStore,
+  statsContext,
   type ShotFile,
   type ShotResult,
   type JobStore,
@@ -20,8 +21,8 @@ export {
  * running the browser twice, unless `fresh` is set or the cached result came from an older
  * engine. Throws UrlError (plain English) or RateLimitError.
  */
-export async function createJob(input: string, ip = 'unknown', fresh = false): Promise<Job> {
-  return (await getStore()).createJob(input, ip, fresh);
+export async function createJob(input: string, ip = 'unknown', fresh = false, country?: string): Promise<Job> {
+  return (await getStore()).createJob(input, ip, fresh, country);
 }
 
 export async function getJob(id: string): Promise<Job | undefined> {

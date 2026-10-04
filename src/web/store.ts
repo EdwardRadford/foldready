@@ -86,7 +86,7 @@ export interface JobStore {
   /** 'file' on localhost, 'd1' on Workers. Only for wording and diagnostics. */
   readonly kind: 'file' | 'd1';
   /** Queue a check, or return a recent cached one. Throws UrlError or RateLimitError. */
-  createJob(input: string, ip?: string, fresh?: boolean): Promise<Job>;
+  createJob(input: string, ip?: string, fresh?: boolean, country?: string): Promise<Job>;
   getJob(id: string): Promise<Job | undefined>;
   /** Newest first, for the admin table. */
   listJobs(): Promise<Job[]>;
@@ -121,4 +121,15 @@ export async function getStore(): Promise<JobStore> {
   const { fileStore } = await import('./store-file');
   cachedFileStore = fileStore;
   return fileStore;
+}
+
+/**
+ * The D1 database and execution context for stats, or undefined on localhost where there is
+ * nowhere to keep them (the file store does not count anything).
+ */
+export async function statsContext(): Promise<{ db: D1Database; ctx: ExecutionContext } | undefined> {
+  if (!onWorkers()) return undefined;
+  const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+  const { env, ctx } = await getCloudflareContext({ async: true });
+  return env.DB ? { db: env.DB, ctx } : undefined;
 }

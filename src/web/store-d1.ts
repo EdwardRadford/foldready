@@ -19,6 +19,7 @@ import {
   type ShotResult,
   type StorageUsage,
 } from './store';
+import { dailyHash, domainOf, recordEvent, sweepEvents, type StatEvent } from './stats';
 
 const SHOT_CACHE = 'public, max-age=86400, immutable';
 const LIST_LIMIT = 200;
@@ -153,6 +154,22 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
     } catch {
       // Housekeeping only; rate() clears old hits on every check anyway.
     }
+
+    try {
+      await sweepEvents(db);
+    } catch {
+      // Housekeeping only.
+    }
+  }
+
+  /** Record a stats event without holding up the response. */
+  function track(ev: StatEvent): void {
+    const running = recordEvent(db, ev);
+    try {
+      ctx?.waitUntil(running);
+    } catch {
+      // No live execution context: the write still runs, unsupervised.
+    }
   }
 
   /** Run the sweep in the background, keeping the isolate alive for it where we can. */
@@ -177,7 +194,9 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
     return fetch(`${engineBase()}${pathname}`, { ...init, headers });
   }
 
-  async function rate(ip: string): Promise<void> {
+  async function rate(rawIp: string): Promise<void> {
+    // Keyed by a salted one-day hash, never the raw address. See stats.ts.
+    const ip = await dailyHash(db, 'rate', rawIp);
     const now = Date.now();
     const since = now - RATE_WINDOW_MS;
     await db.prepare('DELETE FROM rate_hits WHERE at < ?').bind(since).run();
@@ -243,10 +262,12 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
     // The permalink is ours, so the result carries our id and the shot URLs follow it.
     const stored: Result = { ...result, id };
     const checkedAt = stored.checkedAt ?? new Date().toISOString();
-    await db
+    // Two overlapping polls can both get here. Only the first write lands, and only it counts.
+    const written = await db
       .prepare(
         `UPDATE jobs SET state = 'done', progress = 'Done', result_json = ?, outcome = ?,
-           score = ?, checked_at = ?, engine_version = ?, error = NULL WHERE id = ?`,
+           score = ?, checked_at = ?, engine_version = ?, error = NULL
+         WHERE id = ? AND state NOT IN ('done', 'error')`,
       )
       .bind(
         JSON.stringify(stored),
@@ -257,6 +278,9 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
         id,
       )
       .run();
+    if ((written.meta?.changes ?? 0) > 0) {
+      track({ kind: 'check_done', domain: domainOf(stored.url), jobId: id });
+    }
 
     try {
       await engineFetch(`/jobs/${encodeURIComponent(engineJobId)}`, { method: 'DELETE' });
@@ -268,17 +292,23 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
     return row ? rowToJob(row) : { id, url: stored.url, state: 'done', progress: 'Done', createdAt: checkedAt, result: stored };
   }
 
-  async function fail(id: string, message: string): Promise<void> {
-    await db
-      .prepare("UPDATE jobs SET state = 'error', progress = '', error = ? WHERE id = ?")
+  /** Mark a job failed, unless it already finished. Never turns a done check into an error. */
+  async function fail(id: string, url: string, message: string): Promise<void> {
+    const written = await db
+      .prepare(
+        "UPDATE jobs SET state = 'error', progress = '', error = ? WHERE id = ? AND state NOT IN ('done', 'error')",
+      )
       .bind(message, id)
       .run();
+    if ((written.meta?.changes ?? 0) > 0) {
+      track({ kind: message === STOPPED ? 'check_stopped' : 'check_failed', domain: domainOf(url), jobId: id });
+    }
   }
 
   return {
     kind: 'd1',
 
-    async createJob(input: string, ip = 'unknown', fresh = false): Promise<Job> {
+    async createJob(input: string, ip = 'unknown', fresh = false, country?: string): Promise<Job> {
       startSweep();
 
       const u = normaliseUrl(input);
@@ -287,7 +317,10 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
 
       if (!fresh) {
         const cached = await findCached(url);
-        if (cached) return cached;
+        if (cached) {
+          track({ kind: 'check_cached', domain: domainOf(url), jobId: cached.id, country });
+          return cached;
+        }
       }
 
       await rate(ip);
@@ -322,6 +355,7 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
         )
         .bind(job.id, job.url, job.state, job.progress, payload.id, ENGINE_VERSION, job.createdAt)
         .run();
+      track({ kind: 'check_started', domain: domainOf(url), jobId: job.id, country });
       return job;
     },
 
@@ -337,8 +371,13 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
       try {
         const res = await engineFetch(`/jobs/${encodeURIComponent(row.engine_job_id)}`);
         if (res.status === 404) {
-          await fail(id, STOPPED);
-          return { ...rowToJob(row), state: 'error', progress: '', error: STOPPED };
+          // Either the engine lost the job, or an overlapping poll has just collected it and
+          // dropped the engine's copy. The second case is a finished check: read it again.
+          const now = await db.prepare('SELECT * FROM jobs WHERE id = ?').bind(id).first<JobRow>();
+          if (now && (now.state === 'done' || now.state === 'error')) return rowToJob(now);
+          await fail(id, row.url, STOPPED);
+          const after = await db.prepare('SELECT * FROM jobs WHERE id = ?').bind(id).first<JobRow>();
+          return after ? rowToJob(after) : { ...rowToJob(row), state: 'error', progress: '', error: STOPPED };
         }
         if (!res.ok) return rowToJob(row);
         engineJob = (await res.json()) as Job;
@@ -352,13 +391,15 @@ export function createD1Store(env: CloudflareEnv, ctx?: ExecutionContext): JobSt
       if (engineJob.state === 'error' || engineJob.result?.error) {
         const message =
           engineJob.error ?? engineJob.result?.error ?? 'That check did not finish. Try again in a minute.';
-        await fail(id, message);
-        return { ...rowToJob(row), state: 'error', progress: '', error: message };
+        await fail(id, row.url, message);
+        const after = await db.prepare('SELECT * FROM jobs WHERE id = ?').bind(id).first<JobRow>();
+        return after ? rowToJob(after) : { ...rowToJob(row), state: 'error', progress: '', error: message };
       }
 
       const progress = engineJob.progress ?? '';
       await db
-        .prepare('UPDATE jobs SET state = ?, progress = ? WHERE id = ?')
+        // Conditional for the same reason as finish(): a slow poll must not drag a finished job back.
+        .prepare("UPDATE jobs SET state = ?, progress = ? WHERE id = ? AND state NOT IN ('done', 'error')")
         .bind(engineJob.state, progress, id)
         .run();
       return { ...rowToJob(row), state: engineJob.state, progress };

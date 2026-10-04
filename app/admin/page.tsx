@@ -78,6 +78,9 @@ export default async function AdminPage({
       <div className="admin-page">
         <div className="admin-head">
           <h1>Jobs</h1>
+          <Link className="btn-quiet btn" href="/admin/stats">
+            Stats
+          </Link>
           <form method="post" action="/api/admin/logout">
             <button className="btn-quiet btn" type="submit">
               Sign out
